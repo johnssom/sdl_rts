@@ -5,21 +5,22 @@
 #include <vector>
 #include <SDL2/SDL.h>
 
-#include "texture_rectangle.h"
+#include "sprite.h"
 #include "collider.h"
 
 class GameEntity {
     private:
         SDL_Renderer* _renderer;
-        TextureRectangle* _sprite;
+        Sprite* _sprite;
         std::vector<Collider*> _colliders;
 
     public:
         GameEntity();
         GameEntity(SDL_Renderer* renderer);
         GameEntity(SDL_Renderer* renderer, std::string filePath);
-        TextureRectangle& getSprite();
+        Sprite& getSprite();
         Collider& getCollider(size_t index);
+        void setSprite(Sprite* sprite);
         void addRectangleTextureComponent(std::string filePath);
         void addRectangleTextureComponent(std::string filePath, Uint8 colorKeyRed, Uint8 colorKeyGreen, Uint8 colorKeyBlue);
         void addCollider();

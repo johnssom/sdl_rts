@@ -27,7 +27,6 @@
 SDLApp* app;
 
 GameEntity* selectionBox;
-AnimatedSprite* animatedSprite;
 std::vector<std::shared_ptr<GameEntity>> dummies;
 SDL_Texture* textTexture;
 SDL_Rect textBox;
@@ -150,17 +149,18 @@ void handleRendering() {
     }
 
     for (const auto& unit : units) {
+        AnimatedSprite* animSprite = dynamic_cast<AnimatedSprite*>(&unit->getGameEntity().getSprite());
+        if (animSprite) {
+            static int unitFrameNum = 0;
+            animSprite->playFrame(0, 0, 32, 44, unitFrameNum);
+            unitFrameNum++;
+        }
         unit->getGameEntity().render();
     }
 
     for (const auto& dummy : dummies) {
         dummy->render();
     }
-
-    static int frameNum = 0;
-    animatedSprite->playFrame(0, 0, 32, 44, frameNum);
-    animatedSprite->render(app->getRenderer());
-    frameNum++;
 
     std::string textContent = "Martin";
     std::string counterText = std::to_string(app->getMouseX());
@@ -181,10 +181,12 @@ int main(int argc, char* argv[]){
     selectionBox->setPosition(0, 0);
 
     for (int i = 0; i < 10; i++) {
-        units.push_back(std::make_unique<UnitEntity>(new GameEntity(app->getRenderer(), "./assets/img/char.bmp")));
-        units.back()->getGameEntity().addCollider();
-        units.back()->getGameEntity().setDimensions(40, 50);
-        units.back()->getGameEntity().setPosition(150 + 60 * (i % 3), 150 + 60 * (i / 3));
+        GameEntity* ge = new GameEntity(app->getRenderer());
+        ge->setSprite(new AnimatedSprite(app->getRenderer(), "./assets/img/iso_char.bmp"));
+        ge->addCollider();
+        ge->setDimensions(40, 50);
+        ge->setPosition(150 + 60 * (i % 3), 150 + 60 * (i / 3));
+        units.push_back(std::make_unique<UnitEntity>(ge));
     }
     
     // Set units context for flocking with separation
@@ -192,9 +194,6 @@ int main(int argc, char* argv[]){
         unit->setUnitsContext(&units);
     }
     
-    animatedSprite = new AnimatedSprite(app->getRenderer(), "./assets/img/iso_char.bmp");
-    animatedSprite->setBoundingBox(200, 200, 32, 44);
-
     collisionSound = new Sound("./assets/sounds/hit.wav");
     collisionSound->setupDevice();
     

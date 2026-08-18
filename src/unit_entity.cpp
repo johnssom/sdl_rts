@@ -1,4 +1,5 @@
 #include "unit_entity.h"
+#include <iostream>
 
 UnitEntity::UnitEntity(GameEntity* gameEntity) {
     _gameEntity = gameEntity;

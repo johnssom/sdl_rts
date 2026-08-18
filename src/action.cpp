@@ -1,6 +1,7 @@
 #include "action.h"
 #include "unit_entity.h"
 #include <cmath>
+#include <iostream>
 
 MoveAction::MoveAction(int x, int y) {
     _targetX = x;

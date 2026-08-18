@@ -1,4 +1,5 @@
 #include "game_entity.h"
+#include "texture_rectangle.h"
 
 GameEntity::GameEntity() {
     _sprite = nullptr;
@@ -14,12 +15,19 @@ GameEntity::GameEntity(SDL_Renderer* renderer, std::string filePath) {
     _sprite = new TextureRectangle(_renderer, filePath);
 }
 
-TextureRectangle& GameEntity::getSprite() {
+Sprite& GameEntity::getSprite() {
     return *_sprite;
 }
 
 Collider& GameEntity::getCollider(size_t index) {
     return *_colliders[index];
+}
+
+void GameEntity::setSprite(Sprite* sprite) {
+    if (nullptr != _sprite) {
+        delete _sprite;
+    }
+    _sprite = sprite;
 }
 
 void GameEntity::addRectangleTextureComponent(std::string filePath) {

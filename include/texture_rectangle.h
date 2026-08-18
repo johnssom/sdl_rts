@@ -4,9 +4,10 @@
 #include <string>
 #include <SDL2/SDL.h>
 
+#include "sprite.h"
 #include "resource_manager.h"
 
-class TextureRectangle {
+class TextureRectangle : public Sprite {
     private:
         SDL_Rect _boundingBox;
         SDL_Texture* _texture;
@@ -15,14 +16,14 @@ class TextureRectangle {
     public:
         TextureRectangle(SDL_Renderer* renderer, std::string filePath);
         TextureRectangle(SDL_Renderer* renderer, std::string filePath, Uint8 colorKeyRed, Uint8 colorKeyGreen, Uint8 colorKeyBlue);
-        int getPositionX();
-        int getPositionY();
-        int getWidth();
-        int getHeight();
-        void setPosition(int x, int y);
-        void setDimensions(int w, int h);
-        void update();
-        void render(SDL_Renderer* renderer);
+        int getPositionX() override;
+        int getPositionY() override;
+        int getWidth() override;
+        int getHeight() override;
+        void setPosition(int x, int y) override;
+        void setDimensions(int w, int h) override;
+        void update() override;
+        void render(SDL_Renderer* renderer) override;
         ~TextureRectangle();
 };
 

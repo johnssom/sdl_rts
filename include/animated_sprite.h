@@ -4,9 +4,10 @@
 #include <string>
 #include <SDL2/SDL.h>
 
+#include "sprite.h"
 #include "resource_manager.h"
 
-class AnimatedSprite {
+class AnimatedSprite : public Sprite {
     private:
         SDL_Rect _spriteSheet;
         SDL_Rect _boundingBox;
@@ -14,10 +15,15 @@ class AnimatedSprite {
 
     public:
         AnimatedSprite(SDL_Renderer* renderer, std::string filePath);
-        void setBoundingBox(int x, int y, int w, int h);
         void playFrame(int x, int y, int w, int h, int frame);
-        void update();
-        void render(SDL_Renderer* renderer);
+        int getPositionX() override;
+        int getPositionY() override;
+        int getWidth() override;
+        int getHeight() override;
+        void setPosition(int x, int y) override;
+        void setDimensions(int w, int h) override;
+        void update() override;
+        void render(SDL_Renderer* renderer) override;
         ~AnimatedSprite();
 };
 
