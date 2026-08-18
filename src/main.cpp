@@ -23,6 +23,7 @@
 #include "animated_sprite.h"
 #include "sound.h"
 #include "dynamic_text.h"
+#include "obstacle.h"
 
 SDLApp* app;
 
@@ -35,6 +36,7 @@ DynamicText* text;
 DynamicText* text2;
 std::vector<std::shared_ptr<UnitEntity>> units;
 std::vector<std::shared_ptr<UnitEntity>> selectedUnits;
+std::vector<Obstacle> obstacles;
 
 struct Selector {
     int startX = 0, startY = 0;
@@ -51,6 +53,16 @@ void setPixel(SDL_Surface* surface, int mouseX, int mouseY, uint8_t r, uint8_t g
     pixelArray[mouseY* surface->pitch + mouseX * surface->format->BytesPerPixel + 1] = b;
     pixelArray[mouseY* surface->pitch + mouseX * surface->format->BytesPerPixel + 2] = r;
     SDL_UnlockSurface(surface);
+}
+
+void spawnObstacles(SDL_Renderer* renderer, int count) {
+    for (int i = 0; i < count; i++) {
+        int w = 40 + std::rand() % 80;
+        int h = 40 + std::rand() % 80;
+        int x = std::rand() % (1600 - w);
+        int y = std::rand() % (900 - h);
+        obstacles.push_back(Obstacle(x, y, w, h));
+    }
 }
 
 void handleEvents() {
@@ -162,6 +174,12 @@ void handleRendering() {
         dummy->render();
     }
 
+    SDL_SetRenderDrawColor(app->getRenderer(), 100, 60, 20, SDL_ALPHA_OPAQUE);
+    for (const auto& obs : obstacles) {
+        SDL_Rect rect = {obs.x, obs.y, obs.w, obs.h};
+        SDL_RenderFillRect(app->getRenderer(), &rect);
+    }
+
     std::string textContent = "Martin";
     std::string counterText = std::to_string(app->getMouseX());
     
@@ -192,6 +210,13 @@ int main(int argc, char* argv[]){
     // Set units context for flocking with separation
     for (auto& unit : units) {
         unit->setUnitsContext(&units);
+    }
+
+    std::srand(42);
+    spawnObstacles(app->getRenderer(), 8);
+
+    for (auto& unit : units) {
+        unit->setObstaclesContext(&obstacles);
     }
     
     collisionSound = new Sound("./assets/sounds/hit.wav");

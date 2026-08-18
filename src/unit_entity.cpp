@@ -19,7 +19,9 @@ void UnitEntity::pushAction(std::unique_ptr<Action> newAction) {
 }
 
 void UnitEntity::queueMoveCommand(int x, int y) {
-    if (_allUnitsPtr) {
+    if (_allUnitsPtr && _obstaclesPtr) {
+        pushAction(std::make_unique<MoveAction>(x, y, _allUnitsPtr, _obstaclesPtr));
+    } else if (_allUnitsPtr) {
         pushAction(std::make_unique<MoveAction>(x, y, _allUnitsPtr));
     } else {
         pushAction(std::make_unique<MoveAction>(x, y));
@@ -28,6 +30,10 @@ void UnitEntity::queueMoveCommand(int x, int y) {
 
 void UnitEntity::setUnitsContext(std::vector<std::shared_ptr<UnitEntity>>* unitsPtr) {
     _allUnitsPtr = unitsPtr;
+}
+
+void UnitEntity::setObstaclesContext(std::vector<Obstacle>* obstaclesPtr) {
+    _obstaclesPtr = obstaclesPtr;
 }
 
 void UnitEntity::update() {

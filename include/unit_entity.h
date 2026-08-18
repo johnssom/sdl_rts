@@ -6,6 +6,7 @@
 
 #include "game_entity.h"
 #include "action.h"
+#include "obstacle.h"
 
 class UnitEntity {
     private:
@@ -14,6 +15,7 @@ class UnitEntity {
         int _health = 80;
         bool _isSelected = false;
         std::vector<std::shared_ptr<UnitEntity>>* _allUnitsPtr = nullptr;
+        std::vector<Obstacle>* _obstaclesPtr = nullptr;
 
     public:
         UnitEntity(GameEntity* gameEntity);
@@ -22,6 +24,7 @@ class UnitEntity {
         void commandMove(int x, int y);
         void queueMoveCommand(int x, int y);
         void setUnitsContext(std::vector<std::shared_ptr<UnitEntity>>* unitsPtr);
+        void setObstaclesContext(std::vector<Obstacle>* obstaclesPtr);
         void update();
         ~UnitEntity();
 
