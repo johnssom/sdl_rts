@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <algorithm>
 
 #include <SDL2/SDL.h> 
 #include <SDL2/SDL_ttf.h>
@@ -29,7 +30,6 @@
 SDLApp* app;
 
 GameEntity* selectionBox;
-std::vector<std::shared_ptr<GameEntity>> dummies;
 SDL_Texture* textTexture;
 SDL_Rect textBox;
 Sound* collisionSound;
@@ -41,12 +41,39 @@ std::vector<Obstacle> obstacles;
 PathGrid* pathGrid = nullptr;
 const int CELL_SIZE = 32;
 
+#define SCREEN_WIDTH              1600
+#define SCREEN_HEIGHT             900
+
+#define MAP_SIZE                  96
+#define TILE_HEIGHT               30
+#define TILE_WIDTH                60
+#define MAP_RENDER_SIZE           24
+#define MAP_RENDER_OFFSET_X       ((SCREEN_WIDTH - (TILE_WIDTH * MAP_RENDER_SIZE)) / 2)
+#define MAP_RENDER_OFFSET_Y       425
+
+#define ISO_RENDER_SPEED          15
+#define MAX_ISO_OBJECTS           (MAP_SIZE * MAP_SIZE)
+
 struct Selector {
     int startX = 0, startY = 0;
     int currX = 0, currY = 0;
     bool isDragging = false;
 };
 Selector selector;
+
+struct ISOObject {
+    int x, y;
+    int sx, sy;
+    SDL_Texture* texture;
+};
+
+ISOObject isoObjects[MAX_ISO_OBJECTS];
+int numISOObjects = 0;
+int mapData[MAP_RENDER_SIZE][MAP_RENDER_SIZE];
+SDL_Texture* tileTexture = nullptr;
+int tileTextureW = 0;
+int tileTextureH = 0;
+double drawTimer = 0;
 
 void setPixel(SDL_Surface* surface, int mouseX, int mouseY, uint8_t r, uint8_t g, uint8_t b) {
     std::cout << "mouse coords:" << mouseX << "," << mouseY << "\n";
@@ -56,6 +83,69 @@ void setPixel(SDL_Surface* surface, int mouseX, int mouseY, uint8_t r, uint8_t g
     pixelArray[mouseY* surface->pitch + mouseX * surface->format->BytesPerPixel + 1] = b;
     pixelArray[mouseY* surface->pitch + mouseX * surface->format->BytesPerPixel + 2] = r;
     SDL_UnlockSurface(surface);
+}
+
+void toISO(int x, int y, int* sx, int* sy) {
+    *sx = MAP_RENDER_OFFSET_X + ((x * TILE_WIDTH / 2) + (y * TILE_WIDTH / 2));
+    *sy = MAP_RENDER_OFFSET_Y + ((y * TILE_HEIGHT / 2) - (x * TILE_HEIGHT / 2));
+}
+
+void clearISOObjects() {
+    numISOObjects = 0;
+}
+
+void addISOObject(int x, int z, int sx, int sy, SDL_Texture* texture) {
+    if (numISOObjects < MAX_ISO_OBJECTS) {
+        ISOObject* o = &isoObjects[numISOObjects++];
+        toISO(x, z, &o->x, &o->y);
+        o->sx = o->x + sx;
+        o->sy = o->y + sy;
+        o->texture = texture;
+    }
+}
+
+static int drawComparator(const void* a, const void* b) {
+    const ISOObject* o1 = (const ISOObject*)a;
+    const ISOObject* o2 = (const ISOObject*)b;
+    return o1->y - o2->y;
+}
+
+void drawISOObjects(SDL_Renderer* renderer) {
+    qsort(isoObjects, numISOObjects, sizeof(ISOObject), drawComparator);
+
+    for (int i = 0; i < numISOObjects; i++) {
+        if (drawTimer >= i) {
+            ISOObject* o = &isoObjects[i];
+            SDL_Rect dest = {o->sx, o->sy, tileTextureW, tileTextureH};
+            SDL_RenderCopy(renderer, o->texture, NULL, &dest);
+        }
+    }
+}
+
+void initMap() {
+    for (int x = 0; x < MAP_RENDER_SIZE; x++) {
+        for (int z = 0; z < MAP_RENDER_SIZE; z++) {
+            mapData[x][z] = 0;
+        }
+    }
+}
+
+void loadTileTexture(SDL_Renderer* renderer) {
+    SDL_Surface* surface = ResourceManager::getInstance().getSurface("./assets/img/tile.bmp");
+    SDL_SetColorKey(surface, SDL_TRUE, SDL_MapRGB(surface->format, 0xFF, 0, 0xFF));
+    tileTexture = SDL_CreateTextureFromSurface(renderer, surface);
+    SDL_QueryTexture(tileTexture, NULL, NULL, &tileTextureW, &tileTextureH);
+}
+
+void drawMap() {
+    for (int x = 0; x < MAP_RENDER_SIZE; x++) {
+        for (int z = 0; z < MAP_RENDER_SIZE; z++) {
+            int n = mapData[x][z];
+            if (n >= 0 && tileTexture) {
+                addISOObject(x, z, 0, 0, tileTexture);
+            }
+        }
+    }
 }
 
 void spawnObstacles(SDL_Renderer* renderer, int count) {
@@ -133,18 +223,8 @@ void handleUpdates() {
     for (const auto& unit : units) {
         unit->update();
     }
-    int i = 0;
-    for (const auto& dummy : dummies) {
-        dummy->update();
-        dummy->getCollider(0).setPosition(dummy->getSprite().getPositionX(), dummy->getSprite().getPositionY());
-        dummy->getCollider(0).setDimensions(dummy->getSprite().getWidth(), dummy->getSprite().getHeight());
-        // for (const auto& unit : units) {
-        //     if (dummy->getCollider(0).isColliding(unit->getGameEntity().getCollider(0))) {
-        //         std::cout << "HIT: (" << i << ")\n";
-        //     }
-        // }
-        i++;
-    }
+
+    drawTimer = std::min(drawTimer + ISO_RENDER_SPEED, (double)numISOObjects);
     SDL_Delay(10);
 }
 
@@ -152,6 +232,10 @@ void handleRendering() {
     SDL_SetRenderDrawColor(app->getRenderer(), 0, 0, 0, SDL_ALPHA_OPAQUE);
     SDL_RenderDrawRect(app->getRenderer(), &textBox);
     SDL_RenderCopy(app->getRenderer(), textTexture, NULL, &textBox);
+
+    clearISOObjects();
+    drawMap();
+    drawISOObjects(app->getRenderer());
 
     if (pathGrid) {
         int cs = pathGrid->getCellSize();
@@ -210,10 +294,6 @@ void handleRendering() {
         }
     }
 
-    for (const auto& dummy : dummies) {
-        dummy->render();
-    }
-
     SDL_SetRenderDrawColor(app->getRenderer(), 100, 60, 20, SDL_ALPHA_OPAQUE);
     for (const auto& obs : obstacles) {
         SDL_Rect rect = {obs.x, obs.y, obs.w, obs.h};
@@ -264,17 +344,13 @@ int main(int argc, char* argv[]){
         unit->setObstaclesContext(&obstacles);
         unit->setPathGrid(pathGrid);
     }
+
+    initMap();
+    loadTileTexture(app->getRenderer());
+    drawTimer = 0;
     
     collisionSound = new Sound("./assets/sounds/hit.wav");
     collisionSound->setupDevice();
-    
-    for (int i = 0; i < 10; i++) {
-        std::shared_ptr<GameEntity> dummy = std::make_shared<GameEntity>(app->getRenderer(), "./assets/img/char.bmp");
-        dummy->addCollider();
-        dummy->getSprite().setDimensions(40, 50);
-        dummy->getSprite().setPosition(60 * (i % 3), 60 * (i / 3));
-        dummies.push_back(dummy);
-    }
 
     app->setEventCallback(handleEvents);
     app->setUpdateCallback(handleUpdates);
@@ -284,6 +360,7 @@ int main(int argc, char* argv[]){
     delete app;
     delete collisionSound;
     delete pathGrid;
+    if (tileTexture) SDL_DestroyTexture(tileTexture);
 
     return 0;
 }
