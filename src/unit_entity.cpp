@@ -25,7 +25,7 @@ void UnitEntity::queueMoveCommand(int x, int y) {
         int currY = _gameEntity->getPositionY();
         std::vector<std::pair<int, int>> path = _pathGrid->findPath(currX, currY, x, y);
         if (!path.empty()) {
-            pushAction(std::make_unique<PathAction>(path, _allUnitsPtr));
+            pushAction(std::make_unique<PathAction>(path, _allUnitsPtr, x, y, _pathGrid));
         }
     } else if (_allUnitsPtr && _obstaclesPtr) {
         pushAction(std::make_unique<MoveAction>(x, y, _allUnitsPtr, _obstaclesPtr));

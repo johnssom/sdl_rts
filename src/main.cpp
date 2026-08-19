@@ -540,15 +540,6 @@ int main(int argc, char* argv[]){
     selectionBox->addCollider();
     selectionBox->setDimensions(0, 0);
     selectionBox->setPosition(0, 0);
-
-    for (int i = 0; i < 10; i++) {
-        GameEntity* ge = new GameEntity(app->getRenderer());
-        ge->setSprite(new AnimatedSprite(app->getRenderer(), "./assets/img/iso_char.bmp"));
-        ge->addCollider();
-        ge->setDimensions(40, 50);
-        ge->setPosition(150 + 60 * (i % 3), 150 + 60 * (i / 3));
-        units.push_back(std::make_unique<UnitEntity>(ge));
-    }
     
     // Set units context for flocking with separation
     for (auto& unit : units) {
@@ -585,7 +576,7 @@ int main(int argc, char* argv[]){
     b.entity = nullptr;
     b.isProducing = false;
     b.productionTimer = 0.0;
-    b.productionTime = 10000.0;
+    b.productionTime = 5000.0;
     buildings.push_back(b);
 
     for (const auto& building : buildings) {

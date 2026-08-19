@@ -243,10 +243,15 @@ bool MoveAction::updateUnit(UnitEntity& unit) {
     return false;
 }
 
-PathAction::PathAction(std::vector<std::pair<int, int>> path, std::vector<std::shared_ptr<UnitEntity>>* units) {
+PathAction::PathAction(std::vector<std::pair<int, int>> path, std::vector<std::shared_ptr<UnitEntity>>* units, int destX, int destY, PathGrid* pathGrid) {
     _path = path;
     _currentWaypoint = 0;
     _unitsPtr = units;
+    _destX = destX;
+    _destY = destY;
+    _pathGrid = pathGrid;
+    _recalcTimer = 0;
+    _recalcInterval = 30;
 }
 
 void PathAction::calculateSeparation(UnitEntity& unit, double& outX, double& outY) {
@@ -271,7 +276,6 @@ void PathAction::calculateSeparation(UnitEntity& unit, double& outX, double& out
         if (distance < SEPARATION_RADIUS && distance > 0.1) {
             outX += diffX / distance;
             outY += diffY / distance;
-            std::cout << "SEPARATION - OUTX: " << outX << ", OUTY: " << outY << std::endl;
             count++;
         }
     }
@@ -288,11 +292,34 @@ bool PathAction::updateUnit(UnitEntity& unit) {
     int currX = unit.getGameEntity().getPositionX();
     int currY = unit.getGameEntity().getPositionY();
 
+    if (_pathGrid) {
+        int gx, gy;
+        PathGrid::fromISO(currX, currY, &gx, &gy);
+        if (!_pathGrid->isWalkable(gx, gy)) {
+            std::vector<std::pair<int, int>> newPath = _pathGrid->findPath(currX, currY, _destX, _destY);
+            if (!newPath.empty()) {
+                _path = newPath;
+                _currentWaypoint = 0;
+                currX = unit.getGameEntity().getPositionX();
+                currY = unit.getGameEntity().getPositionY();
+            }
+        }
+    }
+
+    _recalcTimer++;
+    if (_recalcTimer >= _recalcInterval && _pathGrid) {
+        _recalcTimer = 0;
+        std::vector<std::pair<int, int>> newPath = _pathGrid->findPath(currX, currY, _destX, _destY);
+        if (!newPath.empty()) {
+            _path = newPath;
+            _currentWaypoint = 0;
+        }
+    }
+
     auto& wp = _path[_currentWaypoint];
     double wpDeltaX = wp.first - currX;
     double wpDeltaY = wp.second - currY;
     double wpDist = std::sqrt(wpDeltaX * wpDeltaX + wpDeltaY * wpDeltaY);
-    std::cout << "WAYPOINT - WPX: " << wp.first << ", WPY: " << wp.second << ", CURRX: " << currX << ", CURRY: " << currY << ", WPDIST: " << wpDist << std::endl;
     if (wpDist < WAYPOINT_REACH_DIST) {
         _currentWaypoint++;
         if (_currentWaypoint >= (int)_path.size()) {
@@ -315,9 +342,19 @@ bool PathAction::updateUnit(UnitEntity& unit) {
         finalDeltaX = (finalDeltaX / finalDist) * MAX_SPEED;
         finalDeltaY = (finalDeltaY / finalDist) * MAX_SPEED;
     }
-    std::cout << "FINAL DELTA - FINALDELX: " << finalDeltaX << ", FINALDELY: " << finalDeltaY << std::endl;
     int moveX = finalDeltaX > 0 ? (int)std::ceil(finalDeltaX) : (int)std::floor(finalDeltaX);
     int moveY = finalDeltaY > 0 ? (int)std::ceil(finalDeltaY) : (int)std::floor(finalDeltaY);
-    unit.getGameEntity().setPosition(currX + moveX, currY + moveY);
+    int newX = currX + moveX;
+    int newY = currY + moveY;
+
+    if (_pathGrid) {
+        int ngx, ngy;
+        PathGrid::fromISO(newX, newY, &ngx, &ngy);
+        if (!_pathGrid->isWalkable(ngx, ngy)) {
+            return false;
+        }
+    }
+
+    unit.getGameEntity().setPosition(newX, newY);
     return false;
 }

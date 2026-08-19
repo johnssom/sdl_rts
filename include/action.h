@@ -8,6 +8,7 @@
 #include "obstacle.h"
 
 class UnitEntity;
+class PathGrid;
 
 class Action {
     public:
@@ -50,6 +51,10 @@ class PathAction: public Action {
         std::vector<std::pair<int, int>> _path;
         int _currentWaypoint;
         std::vector<std::shared_ptr<UnitEntity>>* _unitsPtr;
+        int _destX, _destY;
+        PathGrid* _pathGrid;
+        int _recalcTimer;
+        int _recalcInterval;
 
         static constexpr double SEPARATION_RADIUS = 50.0;
         static constexpr double SEPARATION_WEIGHT = 2.0;
@@ -59,7 +64,7 @@ class PathAction: public Action {
 
         void calculateSeparation(UnitEntity& unit, double& outX, double& outY);
     public:
-        PathAction(std::vector<std::pair<int, int>> path, std::vector<std::shared_ptr<UnitEntity>>* units);
+        PathAction(std::vector<std::pair<int, int>> path, std::vector<std::shared_ptr<UnitEntity>>* units, int destX, int destY, PathGrid* pathGrid);
         bool updateUnit(UnitEntity& unit);
         const std::vector<std::pair<int, int>>& getPath() const { return _path; }
         int getCurrentWaypoint() const { return _currentWaypoint; }
