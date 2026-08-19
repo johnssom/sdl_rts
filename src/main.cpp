@@ -29,6 +29,7 @@
 #include "path_grid.h"
 #include "building.h"
 #include "loading_bar.h"
+#include "button.h"
 
 SDLApp* app;
 
@@ -84,6 +85,7 @@ std::vector<ISORenderEntry> renderEntries;
 
 std::vector<Building> buildings;
 LoadingBar* productionBar = nullptr;
+Button* productionButton = nullptr;
 
 void spawnUnitAtTile(int tileX, int tileY) {
     int sx, sy;
@@ -233,11 +235,7 @@ void handleEvents() {
                     int mx = event.button.x;
                     int my = event.button.y;
 
-                    int btnX = SCREEN_WIDTH - 160;
-                    int btnY = SCREEN_HEIGHT - 60;
-                    int btnW = 140;
-                    int btnH = 40;
-                    if (mx >= btnX && mx <= btnX + btnW && my >= btnY && my <= btnY + btnH) {
+                    if (productionButton->containsPoint(mx, my)) {
                         for (auto& building : buildings) {
                             if (!building.isProducing()) {
                                 building.startProduction();
@@ -447,15 +445,7 @@ void handleRendering() {
         entry.render();
     }
 
-    int btnX = SCREEN_WIDTH - 160;
-    int btnY = SCREEN_HEIGHT - 60;
-    int btnW = 140;
-    int btnH = 40;
-    SDL_Rect btnRect = {btnX, btnY, btnW, btnH};
-    SDL_SetRenderDrawColor(app->getRenderer(), 80, 80, 80, SDL_ALPHA_OPAQUE);
-    SDL_RenderFillRect(app->getRenderer(), &btnRect);
-    SDL_SetRenderDrawColor(app->getRenderer(), 160, 160, 160, SDL_ALPHA_OPAQUE);
-    SDL_RenderDrawRect(app->getRenderer(), &btnRect);
+    productionButton->render(app->getRenderer());
 
     std::string textContent = "Martin";
     std::string counterText = std::to_string(app->getMouseX());
@@ -498,6 +488,8 @@ int main(int argc, char* argv[]){
     drawTimer = 0;
 
     productionBar = new LoadingBar(0, 0, 60.0f, 8.0f);
+    productionButton = new Button(app->getRenderer(), "./assets/img/pioneer.bmp",
+        SCREEN_WIDTH - 160, SCREEN_HEIGHT - 60, 64, 64);
 
     buildings.push_back(Building(12, 12, 2, 2, 5000.0));
 
@@ -521,6 +513,7 @@ int main(int argc, char* argv[]){
     delete collisionSound;
     delete pathGrid;
     delete productionBar;
+    delete productionButton;
     if (tileTexture) SDL_DestroyTexture(tileTexture);
 
     return 0;
