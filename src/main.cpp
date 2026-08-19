@@ -51,6 +51,7 @@ PathGrid* pathGrid = nullptr;
 #define MAP_RENDER_OFFSET_X       ((SCREEN_WIDTH - (TILE_WIDTH * MAP_RENDER_SIZE)) / 2)
 #define MAP_RENDER_OFFSET_Y       425
 
+#define BUILDING_HEIGHT           50
 #define ISO_RENDER_SPEED          15
 #define MAX_ISO_OBJECTS           (MAP_SIZE * MAP_SIZE)
 
@@ -81,6 +82,33 @@ struct ISORenderEntry {
 };
 std::vector<ISORenderEntry> renderEntries;
 
+struct Building {
+    int tileX, tileY;
+    int tileW, tileH;
+    GameEntity* entity;
+    double spawnTimer;
+    double spawnInterval;
+};
+std::vector<Building> buildings;
+SDL_Texture* buildingTexture = nullptr;
+int buildingTextureW = 0;
+int buildingTextureH = 0;
+
+void spawnUnitAtTile(int tileX, int tileY) {
+    int sx, sy;
+    PathGrid::toISO(tileX, tileY, &sx, &sy);
+    GameEntity* ge = new GameEntity(app->getRenderer());
+    ge->setSprite(new AnimatedSprite(app->getRenderer(), "./assets/img/iso_char.bmp"));
+    ge->addCollider();
+    ge->setDimensions(40, 50);
+    ge->setPosition(sx + TILE_WIDTH / 2, sy + TILE_HEIGHT / 2);
+    auto unit = std::make_unique<UnitEntity>(ge);
+    unit->setUnitsContext(&units);
+    unit->setObstaclesContext(&obstacles);
+    unit->setPathGrid(pathGrid);
+    units.push_back(std::move(unit));
+}
+
 void setPixel(SDL_Surface* surface, int mouseX, int mouseY, uint8_t r, uint8_t g, uint8_t b) {
     std::cout << "mouse coords:" << mouseX << "," << mouseY << "\n";
     SDL_LockSurface(surface);
@@ -94,6 +122,48 @@ void setPixel(SDL_Surface* surface, int mouseX, int mouseY, uint8_t r, uint8_t g
 void toISO(int x, int y, int* sx, int* sy) {
     *sx = MAP_RENDER_OFFSET_X + ((x * TILE_WIDTH / 2) + (y * TILE_WIDTH / 2));
     *sy = MAP_RENDER_OFFSET_Y + ((y * TILE_HEIGHT / 2) - (x * TILE_HEIGHT / 2));
+}
+
+struct BuildingDiamond {
+    float cx, cy, hw, hh;
+    float topX, topY, rightX, rightY, bottomX, bottomY, leftX, leftY;
+};
+
+BuildingDiamond getBuildingDiamond(const Building& b) {
+    int tsx, tsy, rsx, rsy, bsx, bsy, lsx, lsy;
+
+    PathGrid::toISO(b.tileX + b.tileW - 1, b.tileY, &tsx, &tsy);
+    float topX = tsx + TILE_WIDTH / 2.0f;
+    float topY = tsy;
+
+    PathGrid::toISO(b.tileX + b.tileW - 1, b.tileY + b.tileH - 1, &rsx, &rsy);
+    float rightX = rsx + TILE_WIDTH;
+    float rightY = rsy + TILE_HEIGHT / 2.0f;
+
+    PathGrid::toISO(b.tileX, b.tileY + b.tileH - 1, &bsx, &bsy);
+    float bottomX = bsx + TILE_WIDTH / 2.0f;
+    float bottomY = bsy + TILE_HEIGHT;
+
+    PathGrid::toISO(b.tileX, b.tileY, &lsx, &lsy);
+    float leftX = lsx;
+    float leftY = lsy + TILE_HEIGHT / 2.0f;
+
+    float cx = (topX + bottomX) / 2.0f;
+    float cy = (topY + bottomY) / 2.0f;
+    float hw = (rightX - leftX) / 2.0f;
+    float hh = (bottomY - topY) / 2.0f;
+
+    return {cx, cy, hw, hh, topX, topY, rightX, rightY, bottomX, bottomY, leftX, leftY};
+}
+
+bool isInsideBuildingFootprint(int px, int py) {
+    for (const auto& b : buildings) {
+        BuildingDiamond d = getBuildingDiamond(b);
+        double dx = std::abs(px - d.cx) / d.hw;
+        double dy = std::abs(py - d.cy) / d.hh;
+        if (dx + dy <= 1.0) return true;
+    }
+    return false;
 }
 
 void clearISOObjects() {
@@ -211,12 +281,30 @@ void handleEvents() {
                 break;
             case SDL_MOUSEBUTTONUP:
                 if (event.button.button == SDL_BUTTON_LEFT) {
-                    selector.isDragging = false;
-                    for (const auto& unit : units) {
-                        if (selectionBox->getCollider(0).isColliding(unit->getGameEntity().getCollider(0))) {
-                            selectedUnits.push_back(unit);
+                    int dx = selector.currX - selector.startX;
+                    int dy = selector.currY - selector.startY;
+                    bool wasDrag = (dx * dx + dy * dy) > 16;
+
+                    if (wasDrag) {
+                        for (const auto& unit : units) {
+                            if (selectionBox->getCollider(0).isColliding(unit->getGameEntity().getCollider(0))) {
+                                selectedUnits.push_back(unit);
+                            }
+                        }
+                    } else {
+                        selectedUnits.clear();
+                        int mx = event.button.x;
+                        int my = event.button.y;
+                        SDL_Point clickPt = {mx, my};
+                        for (const auto& unit : units) {
+                            SDL_Rect hitbox = unit->getGameEntity().getCollider(0).getHitBox();
+                            if (SDL_PointInRect(&clickPt, &hitbox)) {
+                                selectedUnits.push_back(unit);
+                                break;
+                            }
                         }
                     }
+                    selector.isDragging = false;
                 }
                 break;
         }
@@ -225,7 +313,22 @@ void handleEvents() {
 
 void handleUpdates() {
     for (const auto& unit : units) {
+        int prevX = unit->getGameEntity().getPositionX();
+        int prevY = unit->getGameEntity().getPositionY();
         unit->update();
+        int newX = unit->getGameEntity().getPositionX();
+        int newY = unit->getGameEntity().getPositionY();
+        if (isInsideBuildingFootprint(newX, newY)) {
+            unit->getGameEntity().setPosition(prevX, prevY);
+        }
+    }
+
+    for (auto& building : buildings) {
+        building.spawnTimer += 10.0;
+        if (building.spawnTimer >= building.spawnInterval) {
+            building.spawnTimer = 0.0;
+            spawnUnitAtTile(building.tileX - 1, building.tileY);
+        }
     }
 
     drawTimer = std::min(drawTimer + ISO_RENDER_SPEED, (double)numISOObjects);
@@ -325,6 +428,46 @@ void handleRendering() {
         }});
     }
 
+    for (const auto& building : buildings) {
+        BuildingDiamond d = getBuildingDiamond(building);
+        int sortY = (int)d.bottomY;
+        renderEntries.push_back({sortY, [&building, d]() {
+            int h = BUILDING_HEIGHT;
+            SDL_Renderer* r = app->getRenderer();
+
+            SDL_Color topColor    = {160, 150, 130, SDL_ALPHA_OPAQUE};
+            SDL_Color leftColor   = {110, 100,  85, SDL_ALPHA_OPAQUE};
+            SDL_Color rightColor  = { 80,  75,  65, SDL_ALPHA_OPAQUE};
+
+            SDL_Vertex topVerts[4] = {
+                { SDL_FPoint{d.topX,    d.topY - h},    topColor, SDL_FPoint{0,0} },
+                { SDL_FPoint{d.rightX,  d.rightY - h},  topColor, SDL_FPoint{0,0} },
+                { SDL_FPoint{d.bottomX, d.bottomY - h}, topColor, SDL_FPoint{0,0} },
+                { SDL_FPoint{d.leftX,   d.leftY - h},   topColor, SDL_FPoint{0,0} }
+            };
+            int topIdx[6] = {0, 1, 2, 0, 2, 3};
+            SDL_RenderGeometry(r, NULL, topVerts, 4, topIdx, 6);
+
+            SDL_Vertex leftVerts[4] = {
+                { SDL_FPoint{d.leftX,   d.leftY},   leftColor, SDL_FPoint{0,0} },
+                { SDL_FPoint{d.bottomX, d.bottomY},  leftColor, SDL_FPoint{0,0} },
+                { SDL_FPoint{d.bottomX, d.bottomY - h}, leftColor, SDL_FPoint{0,0} },
+                { SDL_FPoint{d.leftX,   d.leftY - h},   leftColor, SDL_FPoint{0,0} }
+            };
+            int leftIdx[6] = {0, 1, 2, 0, 2, 3};
+            SDL_RenderGeometry(r, NULL, leftVerts, 4, leftIdx, 6);
+
+            SDL_Vertex rightVerts[4] = {
+                { SDL_FPoint{d.bottomX, d.bottomY},  rightColor, SDL_FPoint{0,0} },
+                { SDL_FPoint{d.rightX,  d.rightY},   rightColor, SDL_FPoint{0,0} },
+                { SDL_FPoint{d.rightX,  d.rightY - h},  rightColor, SDL_FPoint{0,0} },
+                { SDL_FPoint{d.bottomX, d.bottomY - h}, rightColor, SDL_FPoint{0,0} }
+            };
+            int rightIdx[6] = {0, 1, 2, 0, 2, 3};
+            SDL_RenderGeometry(r, NULL, rightVerts, 4, rightIdx, 6);
+        }});
+    }
+
     std::sort(renderEntries.begin(), renderEntries.end(),
         [](const ISORenderEntry& a, const ISORenderEntry& b) { return a.sortY < b.sortY; });
 
@@ -380,7 +523,30 @@ int main(int argc, char* argv[]){
     initMap();
     loadTileTexture(app->getRenderer());
     drawTimer = 0;
-    
+
+    SDL_Surface* buildingSurface = ResourceManager::getInstance().getSurface("./assets/img/building.bmp");
+    SDL_SetColorKey(buildingSurface, SDL_TRUE, SDL_MapRGB(buildingSurface->format, 0xFF, 0, 0xFF));
+    buildingTexture = SDL_CreateTextureFromSurface(app->getRenderer(), buildingSurface);
+    SDL_QueryTexture(buildingTexture, NULL, NULL, &buildingTextureW, &buildingTextureH);
+
+    Building b;
+    b.tileX = 12;
+    b.tileY = 12;
+    b.tileW = 2;
+    b.tileH = 2;
+    b.entity = nullptr;
+    b.spawnTimer = 0.0;
+    b.spawnInterval = 30000.0;
+    buildings.push_back(b);
+
+    for (const auto& building : buildings) {
+        for (int tx = building.tileX; tx < building.tileX + building.tileW; tx++) {
+            for (int ty = building.tileY; ty < building.tileY + building.tileH; ty++) {
+                pathGrid->markTile(tx, ty);
+            }
+        }
+    }
+
     collisionSound = new Sound("./assets/sounds/hit.wav");
     collisionSound->setupDevice();
 
@@ -393,6 +559,7 @@ int main(int argc, char* argv[]){
     delete collisionSound;
     delete pathGrid;
     if (tileTexture) SDL_DestroyTexture(tileTexture);
+    if (buildingTexture) SDL_DestroyTexture(buildingTexture);
 
     return 0;
 }
