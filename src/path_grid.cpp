@@ -6,6 +6,14 @@
 #include <unordered_set>
 #include <functional>
 
+static const int TILE_WIDTH = 60;
+static const int TILE_HEIGHT = 30;
+static const int MAP_RENDER_SIZE = 24;
+static const int SCREEN_WIDTH = 1600;
+static const int SCREEN_HEIGHT = 900;
+static const int MAP_RENDER_OFFSET_X = (SCREEN_WIDTH - (TILE_WIDTH * MAP_RENDER_SIZE)) / 2;
+static const int MAP_RENDER_OFFSET_Y = 425;
+
 struct PairHash {
     size_t operator()(const std::pair<int,int>& p) const {
         size_t h1 = std::hash<int>()(p.first);
@@ -14,10 +22,9 @@ struct PairHash {
     }
 };
 
-PathGrid::PathGrid(int worldWidth, int worldHeight, int cellSize) {
-    _cellSize = cellSize;
-    _width = (worldWidth + cellSize - 1) / cellSize;
-    _height = (worldHeight + cellSize - 1) / cellSize;
+PathGrid::PathGrid(int mapSize) {
+    _width = mapSize;
+    _height = mapSize;
     _walkable = new bool[_width * _height];
     for (int i = 0; i < _width * _height; i++) {
         _walkable[i] = true;
@@ -28,7 +35,6 @@ PathGrid::~PathGrid() {
     delete[] _walkable;
 }
 
-int PathGrid::getCellSize() const { return _cellSize; }
 int PathGrid::getGridWidth() const { return _width; }
 int PathGrid::getGridHeight() const { return _height; }
 
@@ -43,25 +49,36 @@ void PathGrid::setWalkable(int gridX, int gridY, bool walkable) {
     }
 }
 
-void PathGrid::markObstacle(const Obstacle& obs) {
-    int startX = obs.x / _cellSize;
-    int startY = obs.y / _cellSize;
-    int endX = (obs.x + obs.w - 1) / _cellSize;
-    int endY = (obs.y + obs.h - 1) / _cellSize;
+void PathGrid::markTile(int gridX, int gridY) {
+    setWalkable(gridX, gridY, false);
+}
 
-    for (int y = startY; y <= endY; y++) {
-        for (int x = startX; x <= endX; x++) {
-            setWalkable(x, y, false);
-        }
-    }
+void PathGrid::toISO(int x, int y, int* sx, int* sy) {
+    *sx = MAP_RENDER_OFFSET_X + (x * TILE_WIDTH / 2 + y * TILE_WIDTH / 2);
+    *sy = MAP_RENDER_OFFSET_Y + (y * TILE_HEIGHT / 2 - x * TILE_HEIGHT / 2);
+}
+
+void PathGrid::fromISO(int px, int py, int* gx, int* gy) {
+    int dx = px - MAP_RENDER_OFFSET_X;
+    int dy = py - MAP_RENDER_OFFSET_Y;
+    double tx = (dx / (TILE_WIDTH / 2.0) - dy / (TILE_HEIGHT / 2.0)) / 2.0;
+    double ty = (dx / (TILE_WIDTH / 2.0) + dy / (TILE_HEIGHT / 2.0)) / 2.0;
+    *gx = (int)std::round(tx);
+    *gy = (int)std::round(ty);
 }
 
 PathGrid::GridCoord PathGrid::pixelToGrid(int px, int py) const {
-    return {px / _cellSize, py / _cellSize};
+    int gx, gy;
+    fromISO(px, py, &gx, &gy);
+    gx = std::max(0, std::min(gx, _width - 1));
+    gy = std::max(0, std::min(gy, _height - 1));
+    return {gx, gy};
 }
 
 std::pair<int, int> PathGrid::gridToPixel(int gx, int gy) const {
-    return {gx * _cellSize, gy * _cellSize};
+    int sx, sy;
+    toISO(gx, gy, &sx, &sy);
+    return {sx + TILE_WIDTH / 2, sy + TILE_HEIGHT / 2};
 }
 
 bool PathGrid::isInBounds(int gridX, int gridY) const {
@@ -79,7 +96,8 @@ std::vector<std::pair<int, int>> PathGrid::findPath(int startX, int startY, int 
     }
 
     if (start.x == end.x && start.y == end.y) {
-        path.push_back({endX, endY});
+        auto p = gridToPixel(end.x, end.y);
+        path.push_back(p);
         return path;
     }
 

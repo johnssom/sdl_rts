@@ -1,5 +1,6 @@
 #include "action.h"
 #include "unit_entity.h"
+#include "path_grid.h"
 #include <cmath>
 #include <iostream>
 
@@ -173,14 +174,16 @@ void MoveAction::calculateObstacleAvoidance(UnitEntity& unit, double& outX, doub
     double unitCY = unit.getGameEntity().getPositionY();
 
     for (const auto& obs : *_obstaclesPtr) {
-        double obsCX = obs.x + obs.w / 2.0;
-        double obsCY = obs.y + obs.h / 2.0;
+        int obsSX, obsSY;
+        PathGrid::toISO(obs.x, obs.y, &obsSX, &obsSY);
+        double obsCX = obsSX + 30.0;
+        double obsCY = obsSY + 15.0;
 
         double diffX = unitCX - obsCX;
         double diffY = unitCY - obsCY;
         double distance = std::sqrt(diffX * diffX + diffY * diffY);
 
-        double avoidRadius = OBSTACLE_AVOIDANCE_RADIUS + (obs.w + obs.h) / 4.0;
+        double avoidRadius = OBSTACLE_AVOIDANCE_RADIUS;
 
         if (distance < avoidRadius && distance > 0.1) {
             double force = 1.0 - (distance / avoidRadius);

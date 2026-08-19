@@ -39,7 +39,6 @@ std::vector<std::shared_ptr<UnitEntity>> units;
 std::vector<std::shared_ptr<UnitEntity>> selectedUnits;
 std::vector<Obstacle> obstacles;
 PathGrid* pathGrid = nullptr;
-const int CELL_SIZE = 32;
 
 #define SCREEN_WIDTH              1600
 #define SCREEN_HEIGHT             900
@@ -150,11 +149,9 @@ void drawMap() {
 
 void spawnObstacles(SDL_Renderer* renderer, int count) {
     for (int i = 0; i < count; i++) {
-        int w = 40 + std::rand() % 80;
-        int h = 40 + std::rand() % 80;
-        int x = std::rand() % (1600 - w);
-        int y = std::rand() % (900 - h);
-        obstacles.push_back(Obstacle(x, y, w, h));
+        int gx = 5 + std::rand() % 10;
+        int gy = 5 + std::rand() % 10;
+        obstacles.push_back(Obstacle(gx, gy, 0, 0));
     }
 }
 
@@ -238,16 +235,24 @@ void handleRendering() {
     drawISOObjects(app->getRenderer());
 
     if (pathGrid) {
-        int cs = pathGrid->getCellSize();
         for (int gy = 0; gy < pathGrid->getGridHeight(); gy++) {
             for (int gx = 0; gx < pathGrid->getGridWidth(); gx++) {
-                SDL_Rect cell = {gx * cs, gy * cs, cs, cs};
+                int sx, sy;
+                PathGrid::toISO(gx, gy, &sx, &sy);
+
+                SDL_Point points[5];
+                points[0] = {sx + TILE_WIDTH / 2, sy};
+                points[1] = {sx + TILE_WIDTH, sy + TILE_HEIGHT / 2};
+                points[2] = {sx + TILE_WIDTH / 2, sy + TILE_HEIGHT};
+                points[3] = {sx, sy + TILE_HEIGHT / 2};
+                points[4] = {sx + TILE_WIDTH / 2, sy};
+
                 if (pathGrid->isWalkable(gx, gy)) {
                     SDL_SetRenderDrawColor(app->getRenderer(), 40, 40, 40, SDL_ALPHA_OPAQUE);
-                    SDL_RenderDrawRect(app->getRenderer(), &cell);
+                    SDL_RenderDrawLines(app->getRenderer(), points, 5);
                 } else {
                     SDL_SetRenderDrawColor(app->getRenderer(), 180, 40, 40, 120);
-                    SDL_RenderFillRect(app->getRenderer(), &cell);
+                    SDL_RenderDrawLines(app->getRenderer(), points, 5);
                 }
             }
         }
@@ -296,8 +301,24 @@ void handleRendering() {
 
     SDL_SetRenderDrawColor(app->getRenderer(), 100, 60, 20, SDL_ALPHA_OPAQUE);
     for (const auto& obs : obstacles) {
-        SDL_Rect rect = {obs.x, obs.y, obs.w, obs.h};
-        SDL_RenderFillRect(app->getRenderer(), &rect);
+        int sx, sy;
+        PathGrid::toISO(obs.x, obs.y, &sx, &sy);
+        // SDL_Point points[5];
+        // points[0] = {sx + TILE_WIDTH / 2, sy};
+        // points[1] = {sx + TILE_WIDTH, sy + TILE_HEIGHT / 2};
+        // points[2] = {sx + TILE_WIDTH / 2, sy + TILE_HEIGHT};
+        // points[3] = {sx, sy + TILE_HEIGHT / 2};
+        // points[4] = {sx + TILE_WIDTH / 2, sy};
+        // SDL_RenderDrawLines(app->getRenderer(), points, 5);
+        SDL_Color fillColor = {100, 60, 20, SDL_ALPHA_OPAQUE};
+        SDL_Vertex vertices[4] = {
+            { SDL_FPoint{(float)(sx + TILE_WIDTH / 2), (float)sy}, fillColor, SDL_FPoint{0.0f, 0.0f} }, // Top
+            { SDL_FPoint{(float)(sx + TILE_WIDTH), (float)(sy + TILE_HEIGHT / 2)}, fillColor, SDL_FPoint{0.0f, 0.0f} }, // Right
+            { SDL_FPoint{(float)(sx + TILE_WIDTH / 2), (float)(sy + TILE_HEIGHT)}, fillColor, SDL_FPoint{0.0f, 0.0f} }, // Bottom
+            { SDL_FPoint{(float)sx, (float)(sy + TILE_HEIGHT / 2)}, fillColor, SDL_FPoint{0.0f, 0.0f} }  // Left
+        };
+        int indices[6] = {0, 1, 2, 0, 2, 3};
+        SDL_RenderGeometry(app->getRenderer(), NULL, vertices, 4, indices, 6);
     }
 
     std::string textContent = "Martin";
@@ -335,9 +356,9 @@ int main(int argc, char* argv[]){
     std::srand(42);
     spawnObstacles(app->getRenderer(), 8);
 
-    pathGrid = new PathGrid(1600, 900, CELL_SIZE);
+    pathGrid = new PathGrid(MAP_RENDER_SIZE);
     for (const auto& obs : obstacles) {
-        pathGrid->markObstacle(obs);
+        pathGrid->markTile(obs.x, obs.y);
     }
 
     for (auto& unit : units) {
