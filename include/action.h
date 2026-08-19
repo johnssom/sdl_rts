@@ -61,6 +61,8 @@ class PathAction: public Action {
     public:
         PathAction(std::vector<std::pair<int, int>> path, std::vector<std::shared_ptr<UnitEntity>>* units);
         bool updateUnit(UnitEntity& unit);
+        const std::vector<std::pair<int, int>>& getPath() const { return _path; }
+        int getCurrentWaypoint() const { return _currentWaypoint; }
 };
 
 #endif

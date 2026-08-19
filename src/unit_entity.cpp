@@ -47,6 +47,11 @@ void UnitEntity::setPathGrid(PathGrid* pathGrid) {
     _pathGrid = pathGrid;
 }
 
+Action* UnitEntity::getCurrentAction() {
+    if (_commandQueue.empty()) return nullptr;
+    return _commandQueue.front().get();
+}
+
 void UnitEntity::update() {
     if (_commandQueue.empty()) return;
     if(_commandQueue.front()->updateUnit(*this)) {

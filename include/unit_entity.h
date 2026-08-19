@@ -28,6 +28,7 @@ class UnitEntity {
         void setUnitsContext(std::vector<std::shared_ptr<UnitEntity>>* unitsPtr);
         void setObstaclesContext(std::vector<Obstacle>* obstaclesPtr);
         void setPathGrid(PathGrid* pathGrid);
+        Action* getCurrentAction();
         void update();
         ~UnitEntity();
 

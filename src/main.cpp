@@ -189,6 +189,27 @@ void handleRendering() {
         unit->getGameEntity().render();
     }
 
+    for (const auto& unit : units) {
+        Action* action = unit->getCurrentAction();
+        PathAction* pathAction = dynamic_cast<PathAction*>(action);
+        if (!pathAction) continue;
+        const auto& path = pathAction->getPath();
+        int wp = pathAction->getCurrentWaypoint();
+        if (path.empty()) continue;
+
+        SDL_Renderer* r = app->getRenderer();
+        int ux = unit->getGameEntity().getSprite().getPositionX();
+        int uy = unit->getGameEntity().getSprite().getPositionY();
+
+        int startX = ux, startY = uy;
+        for (size_t i = wp; i < path.size(); i++) {
+            SDL_SetRenderDrawColor(r, 0, 200, 255, SDL_ALPHA_OPAQUE);
+            SDL_RenderDrawLine(r, startX, startY, path[i].first, path[i].second);
+            startX = path[i].first;
+            startY = path[i].second;
+        }
+    }
+
     for (const auto& dummy : dummies) {
         dummy->render();
     }
