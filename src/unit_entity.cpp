@@ -19,7 +19,14 @@ void UnitEntity::pushAction(std::unique_ptr<Action> newAction) {
 }
 
 void UnitEntity::queueMoveCommand(int x, int y) {
-    if (_allUnitsPtr && _obstaclesPtr) {
+    if (_pathGrid) {
+        int currX = _gameEntity->getSprite().getPositionX();
+        int currY = _gameEntity->getSprite().getPositionY();
+        std::vector<std::pair<int, int>> path = _pathGrid->findPath(currX, currY, x, y);
+        if (!path.empty()) {
+            pushAction(std::make_unique<PathAction>(path, _allUnitsPtr));
+        }
+    } else if (_allUnitsPtr && _obstaclesPtr) {
         pushAction(std::make_unique<MoveAction>(x, y, _allUnitsPtr, _obstaclesPtr));
     } else if (_allUnitsPtr) {
         pushAction(std::make_unique<MoveAction>(x, y, _allUnitsPtr));
@@ -34,6 +41,10 @@ void UnitEntity::setUnitsContext(std::vector<std::shared_ptr<UnitEntity>>* units
 
 void UnitEntity::setObstaclesContext(std::vector<Obstacle>* obstaclesPtr) {
     _obstaclesPtr = obstaclesPtr;
+}
+
+void UnitEntity::setPathGrid(PathGrid* pathGrid) {
+    _pathGrid = pathGrid;
 }
 
 void UnitEntity::update() {

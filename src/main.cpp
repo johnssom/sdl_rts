@@ -24,6 +24,7 @@
 #include "sound.h"
 #include "dynamic_text.h"
 #include "obstacle.h"
+#include "path_grid.h"
 
 SDLApp* app;
 
@@ -37,6 +38,8 @@ DynamicText* text2;
 std::vector<std::shared_ptr<UnitEntity>> units;
 std::vector<std::shared_ptr<UnitEntity>> selectedUnits;
 std::vector<Obstacle> obstacles;
+PathGrid* pathGrid = nullptr;
+const int CELL_SIZE = 32;
 
 struct Selector {
     int startX = 0, startY = 0;
@@ -149,6 +152,22 @@ void handleRendering() {
     SDL_SetRenderDrawColor(app->getRenderer(), 0, 0, 0, SDL_ALPHA_OPAQUE);
     SDL_RenderDrawRect(app->getRenderer(), &textBox);
     SDL_RenderCopy(app->getRenderer(), textTexture, NULL, &textBox);
+
+    if (pathGrid) {
+        int cs = pathGrid->getCellSize();
+        for (int gy = 0; gy < pathGrid->getGridHeight(); gy++) {
+            for (int gx = 0; gx < pathGrid->getGridWidth(); gx++) {
+                SDL_Rect cell = {gx * cs, gy * cs, cs, cs};
+                if (pathGrid->isWalkable(gx, gy)) {
+                    SDL_SetRenderDrawColor(app->getRenderer(), 40, 40, 40, SDL_ALPHA_OPAQUE);
+                    SDL_RenderDrawRect(app->getRenderer(), &cell);
+                } else {
+                    SDL_SetRenderDrawColor(app->getRenderer(), 180, 40, 40, 120);
+                    SDL_RenderFillRect(app->getRenderer(), &cell);
+                }
+            }
+        }
+    }
     
     if (selector.isDragging) {
         int x = std::min(selector.startX, selector.currX);
@@ -215,8 +234,14 @@ int main(int argc, char* argv[]){
     std::srand(42);
     spawnObstacles(app->getRenderer(), 8);
 
+    pathGrid = new PathGrid(1600, 900, CELL_SIZE);
+    for (const auto& obs : obstacles) {
+        pathGrid->markObstacle(obs);
+    }
+
     for (auto& unit : units) {
         unit->setObstaclesContext(&obstacles);
+        unit->setPathGrid(pathGrid);
     }
     
     collisionSound = new Sound("./assets/sounds/hit.wav");
@@ -237,6 +262,7 @@ int main(int argc, char* argv[]){
 
     delete app;
     delete collisionSound;
+    delete pathGrid;
 
     return 0;
 }

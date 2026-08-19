@@ -7,6 +7,7 @@
 #include "game_entity.h"
 #include "action.h"
 #include "obstacle.h"
+#include "path_grid.h"
 
 class UnitEntity {
     private:
@@ -16,6 +17,7 @@ class UnitEntity {
         bool _isSelected = false;
         std::vector<std::shared_ptr<UnitEntity>>* _allUnitsPtr = nullptr;
         std::vector<Obstacle>* _obstaclesPtr = nullptr;
+        PathGrid* _pathGrid = nullptr;
 
     public:
         UnitEntity(GameEntity* gameEntity);
@@ -25,6 +27,7 @@ class UnitEntity {
         void queueMoveCommand(int x, int y);
         void setUnitsContext(std::vector<std::shared_ptr<UnitEntity>>* unitsPtr);
         void setObstaclesContext(std::vector<Obstacle>* obstaclesPtr);
+        void setPathGrid(PathGrid* pathGrid);
         void update();
         ~UnitEntity();
 

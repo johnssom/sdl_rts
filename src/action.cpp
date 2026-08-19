@@ -28,7 +28,6 @@ double MoveAction::getGroupCentroidX() const {
     if (!_unitsPtr || _unitsPtr->empty()) {
         return static_cast<double>(_targetX);
     }
-
     double totalX = 0.0;
     for (const auto& unit : *_unitsPtr) {
         totalX += unit->getGameEntity().getSprite().getPositionX();
@@ -40,7 +39,6 @@ double MoveAction::getGroupCentroidY() const {
     if (!_unitsPtr || _unitsPtr->empty()) {
         return static_cast<double>(_targetY);
     }
-
     double totalY = 0.0;
     for (const auto& unit : *_unitsPtr) {
         totalY += unit->getGameEntity().getSprite().getPositionY();
@@ -53,46 +51,122 @@ bool MoveAction::isGroupAtTarget() const {
     double centroidY = getGroupCentroidY();
     double deltaX = _targetX - centroidX;
     double deltaY = _targetY - centroidY;
-    std::cout << "Centroid: (" << centroidX << ", " << centroidY << "), Target: (" << _targetX << ", " << _targetY << "), Delta: (" << deltaX << ", " << deltaY << ")\n";
     return std::sqrt(deltaX * deltaX + deltaY * deltaY) < 1.0;
 }
 
-void MoveAction::calculateSeparation(UnitEntity& unit, double& outDeltaX, double& outDeltaY) {
-    outDeltaX = 0.0;
-    outDeltaY = 0.0;
-    
+void MoveAction::calculateSeparation(UnitEntity& unit, double& outX, double& outY) {
+    outX = 0.0;
+    outY = 0.0;
     if (!_unitsPtr || _unitsPtr->empty()) return;
-    
+
     int currX = unit.getGameEntity().getSprite().getPositionX();
     int currY = unit.getGameEntity().getSprite().getPositionY();
-    
-    for (const auto& otherUnit : *_unitsPtr) {
-        // Skip self
-        if (otherUnit.get() == &unit) continue;
-        
-        int otherX = otherUnit->getGameEntity().getSprite().getPositionX();
-        int otherY = otherUnit->getGameEntity().getSprite().getPositionY();
-        
+    int count = 0;
+
+    for (const auto& other : *_unitsPtr) {
+        if (other.get() == &unit) continue;
+
+        int otherX = other->getGameEntity().getSprite().getPositionX();
+        int otherY = other->getGameEntity().getSprite().getPositionY();
+
         double diffX = currX - otherX;
         double diffY = currY - otherY;
         double distance = std::sqrt(diffX * diffX + diffY * diffY);
-        
-        // Only apply separation if within radius and closer than min distance
+
         if (distance < SEPARATION_RADIUS && distance > 0.1) {
-            if (distance < MIN_SEPARATION_DISTANCE) {
-                // Strong repulsion when too close
-                double separationForce = 1.0 - (distance / SEPARATION_RADIUS);
-                outDeltaX += (diffX / distance) * separationForce;
-                outDeltaY += (diffY / distance) * separationForce;
+            outX += diffX / distance;
+            outY += diffY / distance;
+            count++;
+        }
+    }
+
+    if (count > 0) {
+        outX /= count;
+        outY /= count;
+    }
+}
+
+void MoveAction::calculateAlignment(UnitEntity& unit, double& outX, double& outY) {
+    outX = 0.0;
+    outY = 0.0;
+    if (!_unitsPtr || _unitsPtr->empty()) return;
+
+    int currX = unit.getGameEntity().getSprite().getPositionX();
+    int currY = unit.getGameEntity().getSprite().getPositionY();
+    int count = 0;
+
+    for (const auto& other : *_unitsPtr) {
+        if (other.get() == &unit) continue;
+
+        int otherX = other->getGameEntity().getSprite().getPositionX();
+        int otherY = other->getGameEntity().getSprite().getPositionY();
+
+        double diffX = otherX - currX;
+        double diffY = otherY - currY;
+        double distance = std::sqrt(diffX * diffX + diffY * diffY);
+
+        if (distance < BOID_RADIUS && distance > 0.1) {
+            double targetDX = _targetX - otherX;
+            double targetDY = _targetY - otherY;
+            double targetDist = std::sqrt(targetDX * targetDX + targetDY * targetDY);
+            if (targetDist > 0.1) {
+                outX += targetDX / targetDist;
+                outY += targetDY / targetDist;
             }
+            count++;
+        }
+    }
+
+    if (count > 0) {
+        outX /= count;
+        outY /= count;
+    }
+}
+
+void MoveAction::calculateCohesion(UnitEntity& unit, double& outX, double& outY) {
+    outX = 0.0;
+    outY = 0.0;
+    if (!_unitsPtr || _unitsPtr->empty()) return;
+
+    int currX = unit.getGameEntity().getSprite().getPositionX();
+    int currY = unit.getGameEntity().getSprite().getPositionY();
+    double avgX = 0.0;
+    double avgY = 0.0;
+    int count = 0;
+
+    for (const auto& other : *_unitsPtr) {
+        if (other.get() == &unit) continue;
+
+        int otherX = other->getGameEntity().getSprite().getPositionX();
+        int otherY = other->getGameEntity().getSprite().getPositionY();
+
+        double diffX = otherX - currX;
+        double diffY = otherY - currY;
+        double distance = std::sqrt(diffX * diffX + diffY * diffY);
+
+        if (distance < BOID_RADIUS) {
+            avgX += otherX;
+            avgY += otherY;
+            count++;
+        }
+    }
+
+    if (count > 0) {
+        avgX /= count;
+        avgY /= count;
+        double dirX = avgX - currX;
+        double dirY = avgY - currY;
+        double dist = std::sqrt(dirX * dirX + dirY * dirY);
+        if (dist > 0.1) {
+            outX = dirX / dist;
+            outY = dirY / dist;
         }
     }
 }
 
-void MoveAction::calculateObstacleAvoidance(UnitEntity& unit, double& outDeltaX, double& outDeltaY) {
-    outDeltaX = 0.0;
-    outDeltaY = 0.0;
-
+void MoveAction::calculateObstacleAvoidance(UnitEntity& unit, double& outX, double& outY) {
+    outX = 0.0;
+    outY = 0.0;
     if (!_obstaclesPtr || _obstaclesPtr->empty()) return;
 
     double unitCX = unit.getGameEntity().getSprite().getPositionX() + unit.getGameEntity().getSprite().getWidth() / 2.0;
@@ -110,8 +184,8 @@ void MoveAction::calculateObstacleAvoidance(UnitEntity& unit, double& outDeltaX,
 
         if (distance < avoidRadius && distance > 0.1) {
             double force = 1.0 - (distance / avoidRadius);
-            outDeltaX += (diffX / distance) * force;
-            outDeltaY += (diffY / distance) * force;
+            outX += (diffX / distance) * force;
+            outY += (diffY / distance) * force;
         }
     }
 }
@@ -123,50 +197,124 @@ bool MoveAction::updateUnit(UnitEntity& unit) {
 
     int currX = unit.getGameEntity().getSprite().getPositionX();
     int currY = unit.getGameEntity().getSprite().getPositionY();
-    
+
     double targetDeltaX = _targetX - currX;
     double targetDeltaY = _targetY - currY;
     double targetDistance = std::sqrt(targetDeltaX * targetDeltaX + targetDeltaY * targetDeltaY);
-    
+
     if (targetDistance < 1) return false;
-    
-    // Normalize target direction
+
     targetDeltaX /= targetDistance;
     targetDeltaY /= targetDistance;
-    
-    // Calculate separation forces
-    double separationDeltaX = 0.0;
-    double separationDeltaY = 0.0;
-    calculateSeparation(unit, separationDeltaX, separationDeltaY);
 
-    // Calculate obstacle avoidance forces
-    double obstacleDeltaX = 0.0;
-    double obstacleDeltaY = 0.0;
-    calculateObstacleAvoidance(unit, obstacleDeltaX, obstacleDeltaY);
+    double sepX = 0.0, sepY = 0.0;
+    calculateSeparation(unit, sepX, sepY);
 
-    // Combine separation and obstacle avoidance
-    double avoidanceDeltaX = separationDeltaX + obstacleDeltaX;
-    double avoidanceDeltaY = separationDeltaY + obstacleDeltaY;
+    double aliX = 0.0, aliY = 0.0;
+    calculateAlignment(unit, aliX, aliY);
 
-    // Keep the move order moving toward the destination; only use avoidance
-    // as a corrective nudge when it is aligned with the goal.
-    double avoidanceDotTarget = avoidanceDeltaX * targetDeltaX + avoidanceDeltaY * targetDeltaY;
-    if (avoidanceDotTarget < 0.0) {
-        avoidanceDeltaX = 0.0;
-        avoidanceDeltaY = 0.0;
+    double cohX = 0.0, cohY = 0.0;
+    calculateCohesion(unit, cohX, cohY);
+
+    double obsX = 0.0, obsY = 0.0;
+    calculateObstacleAvoidance(unit, obsX, obsY);
+
+    double finalDeltaX = targetDeltaX * TARGET_WEIGHT
+                       + sepX * SEPARATION_WEIGHT
+                       + aliX * ALIGNMENT_WEIGHT
+                       + cohX * COHESION_WEIGHT
+                       + obsX * OBSTACLE_AVOIDANCE_WEIGHT;
+    double finalDeltaY = targetDeltaY * TARGET_WEIGHT
+                       + sepY * SEPARATION_WEIGHT
+                       + aliY * ALIGNMENT_WEIGHT
+                       + cohY * COHESION_WEIGHT
+                       + obsY * OBSTACLE_AVOIDANCE_WEIGHT;
+
+    double finalDist = std::sqrt(finalDeltaX * finalDeltaX + finalDeltaY * finalDeltaY);
+    if (finalDist > MAX_SPEED) {
+        finalDeltaX = (finalDeltaX / finalDist) * MAX_SPEED;
+        finalDeltaY = (finalDeltaY / finalDist) * MAX_SPEED;
     }
-    
-    // Combine target movement and avoidance (weighted)
-    double finalDeltaX = (targetDeltaX * TARGET_FORCE) + (avoidanceDeltaX * SEPARATION_FORCE);
-    double finalDeltaY = (targetDeltaY * TARGET_FORCE) + (avoidanceDeltaY * SEPARATION_FORCE);
-    
-    // Normalize final movement
-    double finalDistance = std::sqrt(finalDeltaX * finalDeltaX + finalDeltaY * finalDeltaY);
-    if (finalDistance > 0.1) {
-        finalDeltaX /= finalDistance;
-        finalDeltaY /= finalDistance;
-    }
-    
+
     unit.getGameEntity().setPosition(currX + std::round(finalDeltaX), currY + std::round(finalDeltaY));
+    return false;
+}
+
+PathAction::PathAction(std::vector<std::pair<int, int>> path, std::vector<std::shared_ptr<UnitEntity>>* units) {
+    _path = path;
+    _currentWaypoint = 0;
+    _unitsPtr = units;
+}
+
+void PathAction::calculateSeparation(UnitEntity& unit, double& outX, double& outY) {
+    outX = 0.0;
+    outY = 0.0;
+    if (!_unitsPtr || _unitsPtr->empty()) return;
+
+    int currX = unit.getGameEntity().getSprite().getPositionX();
+    int currY = unit.getGameEntity().getSprite().getPositionY();
+    int count = 0;
+
+    for (const auto& other : *_unitsPtr) {
+        if (other.get() == &unit) continue;
+
+        int otherX = other->getGameEntity().getSprite().getPositionX();
+        int otherY = other->getGameEntity().getSprite().getPositionY();
+
+        double diffX = currX - otherX;
+        double diffY = currY - otherY;
+        double distance = std::sqrt(diffX * diffX + diffY * diffY);
+
+        if (distance < SEPARATION_RADIUS && distance > 0.1) {
+            outX += diffX / distance;
+            outY += diffY / distance;
+            std::cout << "SEPARATION - OUTX: " << outX << ", OUTY: " << outY << std::endl;
+            count++;
+        }
+    }
+
+    if (count > 0) {
+        outX /= count;
+        outY /= count;
+    }
+}
+
+bool PathAction::updateUnit(UnitEntity& unit) {
+    if (_path.empty()) return true;
+
+    int currX = unit.getGameEntity().getSprite().getPositionX();
+    int currY = unit.getGameEntity().getSprite().getPositionY();
+
+    auto& wp = _path[_currentWaypoint];
+    double wpDeltaX = wp.first - currX;
+    double wpDeltaY = wp.second - currY;
+    double wpDist = std::sqrt(wpDeltaX * wpDeltaX + wpDeltaY * wpDeltaY);
+    std::cout << "WAYPOINT - WPX: " << wp.first << ", WPY: " << wp.second << ", CURRX: " << currX << ", CURRY: " << currY << ", WPDIST: " << wpDist << std::endl;
+    if (wpDist < WAYPOINT_REACH_DIST) {
+        _currentWaypoint++;
+        if (_currentWaypoint >= (int)_path.size()) {
+            return true;
+        }
+        return false;
+    }
+
+    wpDeltaX /= wpDist;
+    wpDeltaY /= wpDist;
+
+    double sepX = 0.0, sepY = 0.0;
+    calculateSeparation(unit, sepX, sepY);
+
+    double finalDeltaX = wpDeltaX * WAYPOINT_WEIGHT + sepX * SEPARATION_WEIGHT;
+    double finalDeltaY = wpDeltaY * WAYPOINT_WEIGHT + sepY * SEPARATION_WEIGHT;
+
+    double finalDist = std::sqrt(finalDeltaX * finalDeltaX + finalDeltaY * finalDeltaY);
+    if (finalDist > MAX_SPEED) {
+        finalDeltaX = (finalDeltaX / finalDist) * MAX_SPEED;
+        finalDeltaY = (finalDeltaY / finalDist) * MAX_SPEED;
+    }
+    std::cout << "FINAL DELTA - FINALDELX: " << finalDeltaX << ", FINALDELY: " << finalDeltaY << std::endl;
+    int moveX = finalDeltaX > 0 ? (int)std::ceil(finalDeltaX) : (int)std::floor(finalDeltaX);
+    int moveY = finalDeltaY > 0 ? (int)std::ceil(finalDeltaY) : (int)std::floor(finalDeltaY);
+    unit.getGameEntity().setPosition(currX + moveX, currY + moveY);
     return false;
 }
