@@ -86,8 +86,9 @@ struct Building {
     int tileX, tileY;
     int tileW, tileH;
     GameEntity* entity;
-    double spawnTimer;
-    double spawnInterval;
+    bool isProducing = false;
+    double productionTimer = 0.0;
+    double productionTime = 10000.0;
 };
 std::vector<Building> buildings;
 SDL_Texture* buildingTexture = nullptr;
@@ -281,6 +282,25 @@ void handleEvents() {
                 break;
             case SDL_MOUSEBUTTONUP:
                 if (event.button.button == SDL_BUTTON_LEFT) {
+                    int mx = event.button.x;
+                    int my = event.button.y;
+
+                    int btnX = SCREEN_WIDTH - 160;
+                    int btnY = SCREEN_HEIGHT - 60;
+                    int btnW = 140;
+                    int btnH = 40;
+                    if (mx >= btnX && mx <= btnX + btnW && my >= btnY && my <= btnY + btnH) {
+                        for (auto& building : buildings) {
+                            if (!building.isProducing) {
+                                building.isProducing = true;
+                                building.productionTimer = 0.0;
+                                break;
+                            }
+                        }
+                        selector.isDragging = false;
+                        break;
+                    }
+
                     int dx = selector.currX - selector.startX;
                     int dy = selector.currY - selector.startY;
                     bool wasDrag = (dx * dx + dy * dy) > 16;
@@ -293,8 +313,6 @@ void handleEvents() {
                         }
                     } else {
                         selectedUnits.clear();
-                        int mx = event.button.x;
-                        int my = event.button.y;
                         SDL_Point clickPt = {mx, my};
                         for (const auto& unit : units) {
                             SDL_Rect hitbox = unit->getGameEntity().getCollider(0).getHitBox();
@@ -324,10 +342,13 @@ void handleUpdates() {
     }
 
     for (auto& building : buildings) {
-        building.spawnTimer += 10.0;
-        if (building.spawnTimer >= building.spawnInterval) {
-            building.spawnTimer = 0.0;
-            spawnUnitAtTile(building.tileX - 1, building.tileY);
+        if (building.isProducing) {
+            building.productionTimer += 10.0;
+            if (building.productionTimer >= building.productionTime) {
+                building.isProducing = false;
+                building.productionTimer = 0.0;
+                spawnUnitAtTile(building.tileX - 1, building.tileY);
+            }
         }
     }
 
@@ -385,9 +406,9 @@ void handleRendering() {
         renderEntries.push_back({sortY, [unit]() {
             AnimatedSprite* animSprite = dynamic_cast<AnimatedSprite*>(&unit->getGameEntity().getSprite());
             if (animSprite) {
-                static int unitFrameNum = 0;
-                animSprite->playFrame(0, 0, 32, 44, unitFrameNum);
-                unitFrameNum++;
+                int row = unit->getDirection() * 44;
+                int frame = unit->isMoving() ? unit->getAnimFrame() : 1;
+                animSprite->playFrame(0, row, 32, 44, frame);
             }
             unit->getGameEntity().render();
 
@@ -465,6 +486,23 @@ void handleRendering() {
             };
             int rightIdx[6] = {0, 1, 2, 0, 2, 3};
             SDL_RenderGeometry(r, NULL, rightVerts, 4, rightIdx, 6);
+
+            if (building.isProducing) {
+                float barW = 60.0f;
+                float barH = 8.0f;
+                float barX = d.cx - barW / 2.0f;
+                float barY = d.topY - h - 16.0f;
+                float progress = (float)(building.productionTimer / building.productionTime);
+                if (progress > 1.0f) progress = 1.0f;
+
+                SDL_Rect bgRect = {(int)barX, (int)barY, (int)barW, (int)barH};
+                SDL_SetRenderDrawColor(r, 40, 40, 40, SDL_ALPHA_OPAQUE);
+                SDL_RenderFillRect(r, &bgRect);
+
+                SDL_Rect fillRect = {(int)barX, (int)barY, (int)(barW * progress), (int)barH};
+                SDL_SetRenderDrawColor(r, 0, 200, 80, SDL_ALPHA_OPAQUE);
+                SDL_RenderFillRect(r, &fillRect);
+            }
         }});
     }
 
@@ -474,6 +512,16 @@ void handleRendering() {
     for (const auto& entry : renderEntries) {
         entry.render();
     }
+
+    int btnX = SCREEN_WIDTH - 160;
+    int btnY = SCREEN_HEIGHT - 60;
+    int btnW = 140;
+    int btnH = 40;
+    SDL_Rect btnRect = {btnX, btnY, btnW, btnH};
+    SDL_SetRenderDrawColor(app->getRenderer(), 80, 80, 80, SDL_ALPHA_OPAQUE);
+    SDL_RenderFillRect(app->getRenderer(), &btnRect);
+    SDL_SetRenderDrawColor(app->getRenderer(), 160, 160, 160, SDL_ALPHA_OPAQUE);
+    SDL_RenderDrawRect(app->getRenderer(), &btnRect);
 
     std::string textContent = "Martin";
     std::string counterText = std::to_string(app->getMouseX());
@@ -535,8 +583,9 @@ int main(int argc, char* argv[]){
     b.tileW = 2;
     b.tileH = 2;
     b.entity = nullptr;
-    b.spawnTimer = 0.0;
-    b.spawnInterval = 30000.0;
+    b.isProducing = false;
+    b.productionTimer = 0.0;
+    b.productionTime = 10000.0;
     buildings.push_back(b);
 
     for (const auto& building : buildings) {

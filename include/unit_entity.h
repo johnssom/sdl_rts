@@ -9,6 +9,13 @@
 #include "obstacle.h"
 #include "path_grid.h"
 
+enum Direction {
+    DIR_DOWN_LEFT = 0,
+    DIR_UP_LEFT = 1,
+    DIR_DOWN_RIGHT = 2,
+    DIR_UP_RIGHT = 3
+};
+
 class UnitEntity {
     private:
         GameEntity* _gameEntity;
@@ -18,6 +25,10 @@ class UnitEntity {
         std::vector<std::shared_ptr<UnitEntity>>* _allUnitsPtr = nullptr;
         std::vector<Obstacle>* _obstaclesPtr = nullptr;
         PathGrid* _pathGrid = nullptr;
+        Direction _direction = DIR_DOWN_LEFT;
+        int _animFrame = 0;
+        bool _isMoving = false;
+        int _animTimer = 0;
 
     public:
         UnitEntity(GameEntity* gameEntity);
@@ -29,6 +40,10 @@ class UnitEntity {
         void setObstaclesContext(std::vector<Obstacle>* obstaclesPtr);
         void setPathGrid(PathGrid* pathGrid);
         Action* getCurrentAction();
+        Direction getDirection() const;
+        int getAnimFrame() const;
+        bool isMoving() const;
+        void incrementAnimFrame();
         void update();
         ~UnitEntity();
 

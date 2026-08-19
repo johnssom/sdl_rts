@@ -1,5 +1,6 @@
 #include "unit_entity.h"
 #include <iostream>
+#include <cmath>
 
 UnitEntity::UnitEntity(GameEntity* gameEntity) {
     _gameEntity = gameEntity;
@@ -53,11 +54,57 @@ Action* UnitEntity::getCurrentAction() {
 }
 
 void UnitEntity::update() {
-    if (_commandQueue.empty()) return;
+    if (_commandQueue.empty()) {
+        _isMoving = false;
+        _animFrame = 1;
+        _animTimer = 0;
+        return;
+    }
+
+    int prevX = _gameEntity->getPositionX();
+    int prevY = _gameEntity->getPositionY();
+
     if(_commandQueue.front()->updateUnit(*this)) {
         std::cout << "Finished at (" << _gameEntity->getPositionX() << ", " << _gameEntity->getPositionY() << ") completed action\n";
         _commandQueue.erase(_commandQueue.begin());
+        _isMoving = false;
+        _animFrame = 1;
+        _animTimer = 0;
+        return;
     }
+
+    int deltaX = _gameEntity->getPositionX() - prevX;
+    int deltaY = _gameEntity->getPositionY() - prevY;
+
+    if (deltaX != 0 || deltaY != 0) {
+        _isMoving = true;
+        if (std::abs(deltaX) >= std::abs(deltaY)) {
+            _direction = (deltaX > 0) ? DIR_DOWN_RIGHT : DIR_UP_LEFT;
+        } else {
+            _direction = (deltaY > 0) ? DIR_DOWN_LEFT : DIR_UP_RIGHT;
+        }
+        _animTimer++;
+        if (_animTimer >= 3) {
+            _animTimer = 0;
+            _animFrame = (_animFrame + 1) % 3;
+        }
+    }
+}
+
+Direction UnitEntity::getDirection() const {
+    return _direction;
+}
+
+int UnitEntity::getAnimFrame() const {
+    return _animFrame;
+}
+
+bool UnitEntity::isMoving() const {
+    return _isMoving;
+}
+
+void UnitEntity::incrementAnimFrame() {
+    _animFrame = (_animFrame + 1) % 3;
 }
 
 UnitEntity::~UnitEntity() {
