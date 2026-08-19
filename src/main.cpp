@@ -27,6 +27,8 @@
 #include "dynamic_text.h"
 #include "obstacle.h"
 #include "path_grid.h"
+#include "building.h"
+#include "loading_bar.h"
 
 SDLApp* app;
 
@@ -45,8 +47,6 @@ PathGrid* pathGrid = nullptr;
 #define SCREEN_HEIGHT             900
 
 #define MAP_SIZE                  96
-#define TILE_HEIGHT               30
-#define TILE_WIDTH                60
 #define MAP_RENDER_SIZE           24
 #define MAP_RENDER_OFFSET_X       ((SCREEN_WIDTH - (TILE_WIDTH * MAP_RENDER_SIZE)) / 2)
 #define MAP_RENDER_OFFSET_Y       425
@@ -82,18 +82,8 @@ struct ISORenderEntry {
 };
 std::vector<ISORenderEntry> renderEntries;
 
-struct Building {
-    int tileX, tileY;
-    int tileW, tileH;
-    GameEntity* entity;
-    bool isProducing = false;
-    double productionTimer = 0.0;
-    double productionTime = 10000.0;
-};
 std::vector<Building> buildings;
-SDL_Texture* buildingTexture = nullptr;
-int buildingTextureW = 0;
-int buildingTextureH = 0;
+LoadingBar* productionBar = nullptr;
 
 void spawnUnitAtTile(int tileX, int tileY) {
     int sx, sy;
@@ -123,48 +113,6 @@ void setPixel(SDL_Surface* surface, int mouseX, int mouseY, uint8_t r, uint8_t g
 void toISO(int x, int y, int* sx, int* sy) {
     *sx = MAP_RENDER_OFFSET_X + ((x * TILE_WIDTH / 2) + (y * TILE_WIDTH / 2));
     *sy = MAP_RENDER_OFFSET_Y + ((y * TILE_HEIGHT / 2) - (x * TILE_HEIGHT / 2));
-}
-
-struct BuildingDiamond {
-    float cx, cy, hw, hh;
-    float topX, topY, rightX, rightY, bottomX, bottomY, leftX, leftY;
-};
-
-BuildingDiamond getBuildingDiamond(const Building& b) {
-    int tsx, tsy, rsx, rsy, bsx, bsy, lsx, lsy;
-
-    PathGrid::toISO(b.tileX + b.tileW - 1, b.tileY, &tsx, &tsy);
-    float topX = tsx + TILE_WIDTH / 2.0f;
-    float topY = tsy;
-
-    PathGrid::toISO(b.tileX + b.tileW - 1, b.tileY + b.tileH - 1, &rsx, &rsy);
-    float rightX = rsx + TILE_WIDTH;
-    float rightY = rsy + TILE_HEIGHT / 2.0f;
-
-    PathGrid::toISO(b.tileX, b.tileY + b.tileH - 1, &bsx, &bsy);
-    float bottomX = bsx + TILE_WIDTH / 2.0f;
-    float bottomY = bsy + TILE_HEIGHT;
-
-    PathGrid::toISO(b.tileX, b.tileY, &lsx, &lsy);
-    float leftX = lsx;
-    float leftY = lsy + TILE_HEIGHT / 2.0f;
-
-    float cx = (topX + bottomX) / 2.0f;
-    float cy = (topY + bottomY) / 2.0f;
-    float hw = (rightX - leftX) / 2.0f;
-    float hh = (bottomY - topY) / 2.0f;
-
-    return {cx, cy, hw, hh, topX, topY, rightX, rightY, bottomX, bottomY, leftX, leftY};
-}
-
-bool isInsideBuildingFootprint(int px, int py) {
-    for (const auto& b : buildings) {
-        BuildingDiamond d = getBuildingDiamond(b);
-        double dx = std::abs(px - d.cx) / d.hw;
-        double dy = std::abs(py - d.cy) / d.hh;
-        if (dx + dy <= 1.0) return true;
-    }
-    return false;
 }
 
 void clearISOObjects() {
@@ -291,9 +239,8 @@ void handleEvents() {
                     int btnH = 40;
                     if (mx >= btnX && mx <= btnX + btnW && my >= btnY && my <= btnY + btnH) {
                         for (auto& building : buildings) {
-                            if (!building.isProducing) {
-                                building.isProducing = true;
-                                building.productionTimer = 0.0;
+                            if (!building.isProducing()) {
+                                building.startProduction();
                                 break;
                             }
                         }
@@ -336,19 +283,16 @@ void handleUpdates() {
         unit->update();
         int newX = unit->getGameEntity().getPositionX();
         int newY = unit->getGameEntity().getPositionY();
-        if (isInsideBuildingFootprint(newX, newY)) {
+        if (Building::isInsideAnyFootprint(newX, newY, buildings)) {
             unit->getGameEntity().setPosition(prevX, prevY);
         }
     }
 
     for (auto& building : buildings) {
-        if (building.isProducing) {
-            building.productionTimer += 10.0;
-            if (building.productionTimer >= building.productionTime) {
-                building.isProducing = false;
-                building.productionTimer = 0.0;
-                spawnUnitAtTile(building.tileX - 1, building.tileY);
-            }
+        building.update(10.0);
+        if (building.isDone()) {
+            building.resetProduction();
+            spawnUnitAtTile(building.getTileX() - 1, building.getTileY());
         }
     }
 
@@ -450,7 +394,7 @@ void handleRendering() {
     }
 
     for (const auto& building : buildings) {
-        BuildingDiamond d = getBuildingDiamond(building);
+        BuildingDiamond d = building.getBuildingDiamond();
         int sortY = (int)d.bottomY;
         renderEntries.push_back({sortY, [&building, d]() {
             int h = BUILDING_HEIGHT;
@@ -487,21 +431,11 @@ void handleRendering() {
             int rightIdx[6] = {0, 1, 2, 0, 2, 3};
             SDL_RenderGeometry(r, NULL, rightVerts, 4, rightIdx, 6);
 
-            if (building.isProducing) {
-                float barW = 60.0f;
-                float barH = 8.0f;
-                float barX = d.cx - barW / 2.0f;
-                float barY = d.topY - h - 16.0f;
-                float progress = (float)(building.productionTimer / building.productionTime);
-                if (progress > 1.0f) progress = 1.0f;
-
-                SDL_Rect bgRect = {(int)barX, (int)barY, (int)barW, (int)barH};
-                SDL_SetRenderDrawColor(r, 40, 40, 40, SDL_ALPHA_OPAQUE);
-                SDL_RenderFillRect(r, &bgRect);
-
-                SDL_Rect fillRect = {(int)barX, (int)barY, (int)(barW * progress), (int)barH};
-                SDL_SetRenderDrawColor(r, 0, 200, 80, SDL_ALPHA_OPAQUE);
-                SDL_RenderFillRect(r, &fillRect);
+            if (building.isProducing()) {
+                float barX = d.cx - 30.0f;
+                float barY = d.topY - BUILDING_HEIGHT - 16.0f;
+                productionBar->setPosition(barX, barY);
+                productionBar->render(r, (float)building.getProgress());
             }
         }});
     }
@@ -563,25 +497,13 @@ int main(int argc, char* argv[]){
     loadTileTexture(app->getRenderer());
     drawTimer = 0;
 
-    SDL_Surface* buildingSurface = ResourceManager::getInstance().getSurface("./assets/img/building.bmp");
-    SDL_SetColorKey(buildingSurface, SDL_TRUE, SDL_MapRGB(buildingSurface->format, 0xFF, 0, 0xFF));
-    buildingTexture = SDL_CreateTextureFromSurface(app->getRenderer(), buildingSurface);
-    SDL_QueryTexture(buildingTexture, NULL, NULL, &buildingTextureW, &buildingTextureH);
+    productionBar = new LoadingBar(0, 0, 60.0f, 8.0f);
 
-    Building b;
-    b.tileX = 12;
-    b.tileY = 12;
-    b.tileW = 2;
-    b.tileH = 2;
-    b.entity = nullptr;
-    b.isProducing = false;
-    b.productionTimer = 0.0;
-    b.productionTime = 5000.0;
-    buildings.push_back(b);
+    buildings.push_back(Building(12, 12, 2, 2, 5000.0));
 
     for (const auto& building : buildings) {
-        for (int tx = building.tileX; tx < building.tileX + building.tileW; tx++) {
-            for (int ty = building.tileY; ty < building.tileY + building.tileH; ty++) {
+        for (int tx = building.getTileX(); tx < building.getTileX() + building.getTileW(); tx++) {
+            for (int ty = building.getTileY(); ty < building.getTileY() + building.getTileH(); ty++) {
                 pathGrid->markTile(tx, ty);
             }
         }
@@ -598,8 +520,8 @@ int main(int argc, char* argv[]){
     delete app;
     delete collisionSound;
     delete pathGrid;
+    delete productionBar;
     if (tileTexture) SDL_DestroyTexture(tileTexture);
-    if (buildingTexture) SDL_DestroyTexture(buildingTexture);
 
     return 0;
 }
