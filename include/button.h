@@ -2,6 +2,7 @@
 #define BUTTON_H
 
 #include <string>
+#include <functional>
 #include <SDL2/SDL.h>
 
 #include "sprite.h"
@@ -11,6 +12,7 @@ class Button {
         Sprite* _sprite;
         int _x, _y;
         int _w, _h;
+        std::function<void()> _onClick;
 
     public:
         Button(SDL_Renderer* renderer, std::string filePath, int x, int y, int w, int h);
@@ -20,8 +22,10 @@ class Button {
         int getHeight() const;
         void setPosition(int x, int y);
         void setDimensions(int w, int h);
+        void setOnClick(std::function<void()> callback);
         bool containsPoint(int px, int py) const;
         void render(SDL_Renderer* renderer);
+        void handleClick();
         ~Button();
 };
 

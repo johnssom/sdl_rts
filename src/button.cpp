@@ -25,8 +25,18 @@ void Button::setDimensions(int w, int h) {
     _sprite->setDimensions(w, h);
 }
 
+void Button::setOnClick(std::function<void()> callback) {
+    _onClick = callback;
+}
+
 bool Button::containsPoint(int px, int py) const {
     return px >= _x && px <= _x + _w && py >= _y && py <= _y + _h;
+}
+
+void Button::handleClick() {
+    if (_onClick) {
+        _onClick();
+    }
 }
 
 void Button::render(SDL_Renderer* renderer) {

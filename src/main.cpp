@@ -85,7 +85,6 @@ std::vector<ISORenderEntry> renderEntries;
 
 std::vector<Building> buildings;
 LoadingBar* productionBar = nullptr;
-Button* productionButton = nullptr;
 
 void spawnUnitAtTile(int tileX, int tileY) {
     int sx, sy;
@@ -235,15 +234,8 @@ void handleEvents() {
                     int mx = event.button.x;
                     int my = event.button.y;
 
-                    if (productionButton->containsPoint(mx, my)) {
-                        for (auto& building : buildings) {
-                            if (!building.isProducing()) {
-                                building.startProduction();
-                                break;
-                            }
-                        }
-                        selector.isDragging = false;
-                        break;
+                    for (auto& building : buildings) {
+                        building.handleButtonClick(mx, my);
                     }
 
                     int dx = selector.currX - selector.startX;
@@ -445,7 +437,9 @@ void handleRendering() {
         entry.render();
     }
 
-    productionButton->render(app->getRenderer());
+    for (auto& building : buildings) {
+        building.renderButtons();
+    }
 
     std::string textContent = "Martin";
     std::string counterText = std::to_string(app->getMouseX());
@@ -488,10 +482,16 @@ int main(int argc, char* argv[]){
     drawTimer = 0;
 
     productionBar = new LoadingBar(0, 0, 60.0f, 8.0f);
-    productionButton = new Button(app->getRenderer(), "./assets/img/pioneer.bmp",
-        SCREEN_WIDTH - 160, SCREEN_HEIGHT - 60, 64, 64);
 
-    buildings.push_back(Building(12, 12, 2, 2, 5000.0));
+    buildings.push_back(Building(app->getRenderer(), 12, 12, 2, 2, 5000.0));
+    Building& b = buildings.back();
+    b.addButton("./assets/img/pioneer.bmp",
+        SCREEN_WIDTH - 160, SCREEN_HEIGHT - 60, 64, 64,
+        [&b]() {
+            if (!b.isProducing()) {
+                b.startProduction();
+            }
+        });
 
     for (const auto& building : buildings) {
         for (int tx = building.getTileX(); tx < building.getTileX() + building.getTileW(); tx++) {
@@ -513,7 +513,6 @@ int main(int argc, char* argv[]){
     delete collisionSound;
     delete pathGrid;
     delete productionBar;
-    delete productionButton;
     if (tileTexture) SDL_DestroyTexture(tileTexture);
 
     return 0;

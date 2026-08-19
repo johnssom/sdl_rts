@@ -1,9 +1,10 @@
 #include "building.h"
+#include "button.h"
 #include "path_grid.h"
 #include <cmath>
 
-Building::Building(int tileX, int tileY, int tileW, int tileH, double productionTime)
-    : _tileX(tileX), _tileY(tileY), _tileW(tileW), _tileH(tileH),
+Building::Building(SDL_Renderer* renderer, int tileX, int tileY, int tileW, int tileH, double productionTime)
+    : _renderer(renderer), _tileX(tileX), _tileY(tileY), _tileW(tileW), _tileH(tileH),
       _isProducing(false), _productionTimer(0.0), _productionTime(productionTime) {}
 
 int Building::getTileX() const { return _tileX; }
@@ -69,6 +70,37 @@ bool Building::isInsideFootprint(int px, int py) const {
     double dx = std::abs(px - d.cx) / d.hw;
     double dy = std::abs(py - d.cy) / d.hh;
     return (dx + dy <= 1.0);
+}
+
+void Building::addButton(std::string filePath, int x, int y, int w, int h, std::function<void()> onClick) {
+    Button* btn = new Button(_renderer, filePath, x, y, w, h);
+    btn->setOnClick(onClick);
+    _buttons.push_back(btn);
+}
+
+const std::vector<Button*>& Building::getButtons() const {
+    return _buttons;
+}
+
+void Building::renderButtons() {
+    for (auto* btn : _buttons) {
+        btn->render(_renderer);
+    }
+}
+
+void Building::handleButtonClick(int px, int py) {
+    for (auto* btn : _buttons) {
+        if (btn->containsPoint(px, py)) {
+            btn->handleClick();
+            break;
+        }
+    }
+}
+
+Building::~Building() {
+    for (auto* btn : _buttons) {
+        delete btn;
+    }
 }
 
 bool Building::isInsideAnyFootprint(int px, int py, const std::vector<Building>& buildings) {
