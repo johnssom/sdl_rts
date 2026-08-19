@@ -20,8 +20,8 @@ void UnitEntity::pushAction(std::unique_ptr<Action> newAction) {
 
 void UnitEntity::queueMoveCommand(int x, int y) {
     if (_pathGrid) {
-        int currX = _gameEntity->getSprite().getPositionX();
-        int currY = _gameEntity->getSprite().getPositionY();
+        int currX = _gameEntity->getPositionX();
+        int currY = _gameEntity->getPositionY();
         std::vector<std::pair<int, int>> path = _pathGrid->findPath(currX, currY, x, y);
         if (!path.empty()) {
             pushAction(std::make_unique<PathAction>(path, _allUnitsPtr));
@@ -55,7 +55,7 @@ Action* UnitEntity::getCurrentAction() {
 void UnitEntity::update() {
     if (_commandQueue.empty()) return;
     if(_commandQueue.front()->updateUnit(*this)) {
-        std::cout << "Finished at (" << _gameEntity->getSprite().getPositionX() << ", " << _gameEntity->getSprite().getPositionY() << ") completed action\n";
+        std::cout << "Finished at (" << _gameEntity->getPositionX() << ", " << _gameEntity->getPositionY() << ") completed action\n";
         _commandQueue.erase(_commandQueue.begin());
     }
 }

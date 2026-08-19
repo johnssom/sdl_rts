@@ -30,7 +30,7 @@ double MoveAction::getGroupCentroidX() const {
     }
     double totalX = 0.0;
     for (const auto& unit : *_unitsPtr) {
-        totalX += unit->getGameEntity().getSprite().getPositionX();
+        totalX += unit->getGameEntity().getPositionX();
     }
     return totalX / static_cast<double>(_unitsPtr->size());
 }
@@ -41,7 +41,7 @@ double MoveAction::getGroupCentroidY() const {
     }
     double totalY = 0.0;
     for (const auto& unit : *_unitsPtr) {
-        totalY += unit->getGameEntity().getSprite().getPositionY();
+        totalY += unit->getGameEntity().getPositionY();
     }
     return totalY / static_cast<double>(_unitsPtr->size());
 }
@@ -59,15 +59,15 @@ void MoveAction::calculateSeparation(UnitEntity& unit, double& outX, double& out
     outY = 0.0;
     if (!_unitsPtr || _unitsPtr->empty()) return;
 
-    int currX = unit.getGameEntity().getSprite().getPositionX();
-    int currY = unit.getGameEntity().getSprite().getPositionY();
+    int currX = unit.getGameEntity().getPositionX();
+    int currY = unit.getGameEntity().getPositionY();
     int count = 0;
 
     for (const auto& other : *_unitsPtr) {
         if (other.get() == &unit) continue;
 
-        int otherX = other->getGameEntity().getSprite().getPositionX();
-        int otherY = other->getGameEntity().getSprite().getPositionY();
+        int otherX = other->getGameEntity().getPositionX();
+        int otherY = other->getGameEntity().getPositionY();
 
         double diffX = currX - otherX;
         double diffY = currY - otherY;
@@ -91,15 +91,15 @@ void MoveAction::calculateAlignment(UnitEntity& unit, double& outX, double& outY
     outY = 0.0;
     if (!_unitsPtr || _unitsPtr->empty()) return;
 
-    int currX = unit.getGameEntity().getSprite().getPositionX();
-    int currY = unit.getGameEntity().getSprite().getPositionY();
+    int currX = unit.getGameEntity().getPositionX();
+    int currY = unit.getGameEntity().getPositionY();
     int count = 0;
 
     for (const auto& other : *_unitsPtr) {
         if (other.get() == &unit) continue;
 
-        int otherX = other->getGameEntity().getSprite().getPositionX();
-        int otherY = other->getGameEntity().getSprite().getPositionY();
+        int otherX = other->getGameEntity().getPositionX();
+        int otherY = other->getGameEntity().getPositionY();
 
         double diffX = otherX - currX;
         double diffY = otherY - currY;
@@ -128,8 +128,8 @@ void MoveAction::calculateCohesion(UnitEntity& unit, double& outX, double& outY)
     outY = 0.0;
     if (!_unitsPtr || _unitsPtr->empty()) return;
 
-    int currX = unit.getGameEntity().getSprite().getPositionX();
-    int currY = unit.getGameEntity().getSprite().getPositionY();
+    int currX = unit.getGameEntity().getPositionX();
+    int currY = unit.getGameEntity().getPositionY();
     double avgX = 0.0;
     double avgY = 0.0;
     int count = 0;
@@ -137,8 +137,8 @@ void MoveAction::calculateCohesion(UnitEntity& unit, double& outX, double& outY)
     for (const auto& other : *_unitsPtr) {
         if (other.get() == &unit) continue;
 
-        int otherX = other->getGameEntity().getSprite().getPositionX();
-        int otherY = other->getGameEntity().getSprite().getPositionY();
+        int otherX = other->getGameEntity().getPositionX();
+        int otherY = other->getGameEntity().getPositionY();
 
         double diffX = otherX - currX;
         double diffY = otherY - currY;
@@ -169,8 +169,8 @@ void MoveAction::calculateObstacleAvoidance(UnitEntity& unit, double& outX, doub
     outY = 0.0;
     if (!_obstaclesPtr || _obstaclesPtr->empty()) return;
 
-    double unitCX = unit.getGameEntity().getSprite().getPositionX() + unit.getGameEntity().getSprite().getWidth() / 2.0;
-    double unitCY = unit.getGameEntity().getSprite().getPositionY() + unit.getGameEntity().getSprite().getHeight() / 2.0;
+    double unitCX = unit.getGameEntity().getPositionX();
+    double unitCY = unit.getGameEntity().getPositionY();
 
     for (const auto& obs : *_obstaclesPtr) {
         double obsCX = obs.x + obs.w / 2.0;
@@ -195,8 +195,8 @@ bool MoveAction::updateUnit(UnitEntity& unit) {
         return true;
     }
 
-    int currX = unit.getGameEntity().getSprite().getPositionX();
-    int currY = unit.getGameEntity().getSprite().getPositionY();
+    int currX = unit.getGameEntity().getPositionX();
+    int currY = unit.getGameEntity().getPositionY();
 
     double targetDeltaX = _targetX - currX;
     double targetDeltaY = _targetY - currY;
@@ -251,15 +251,15 @@ void PathAction::calculateSeparation(UnitEntity& unit, double& outX, double& out
     outY = 0.0;
     if (!_unitsPtr || _unitsPtr->empty()) return;
 
-    int currX = unit.getGameEntity().getSprite().getPositionX();
-    int currY = unit.getGameEntity().getSprite().getPositionY();
+    int currX = unit.getGameEntity().getPositionX();
+    int currY = unit.getGameEntity().getPositionY();
     int count = 0;
 
     for (const auto& other : *_unitsPtr) {
         if (other.get() == &unit) continue;
 
-        int otherX = other->getGameEntity().getSprite().getPositionX();
-        int otherY = other->getGameEntity().getSprite().getPositionY();
+        int otherX = other->getGameEntity().getPositionX();
+        int otherY = other->getGameEntity().getPositionY();
 
         double diffX = currX - otherX;
         double diffY = currY - otherY;
@@ -282,8 +282,8 @@ void PathAction::calculateSeparation(UnitEntity& unit, double& outX, double& out
 bool PathAction::updateUnit(UnitEntity& unit) {
     if (_path.empty()) return true;
 
-    int currX = unit.getGameEntity().getSprite().getPositionX();
-    int currY = unit.getGameEntity().getSprite().getPositionY();
+    int currX = unit.getGameEntity().getPositionX();
+    int currY = unit.getGameEntity().getPositionY();
 
     auto& wp = _path[_currentWaypoint];
     double wpDeltaX = wp.first - currX;

@@ -198,8 +198,8 @@ void handleRendering() {
         if (path.empty()) continue;
 
         SDL_Renderer* r = app->getRenderer();
-        int ux = unit->getGameEntity().getSprite().getPositionX();
-        int uy = unit->getGameEntity().getSprite().getPositionY();
+        int ux = unit->getGameEntity().getPositionX();
+        int uy = unit->getGameEntity().getPositionY();
 
         int startX = ux, startY = uy;
         for (size_t i = wp; i < path.size(); i++) {

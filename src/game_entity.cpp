@@ -43,14 +43,32 @@ void GameEntity::addCollider() {
 }
 
 void GameEntity::setPosition(int x, int y) {
+    int w = (_sprite != nullptr) ? _sprite->getWidth() : 0;
+    int h = (_sprite != nullptr) ? _sprite->getHeight() : 0;
+    int tlX = x - w / 2;
+    int tlY = y - h / 2;
     if (nullptr != _sprite) {
-        _sprite->setPosition(x, y);
+        _sprite->setPosition(tlX, tlY);
     }
     for (int i = 0; i < _colliders.size(); i++) {
         if (nullptr != _colliders[i]) {
-            _colliders[i]->setPosition(x, y);
+            _colliders[i]->setPosition(tlX, tlY);
         }
     }
+}
+
+int GameEntity::getPositionX() const {
+    if (nullptr != _sprite) {
+        return _sprite->getPositionX() + _sprite->getWidth() / 2;
+    }
+    return 0;
+}
+
+int GameEntity::getPositionY() const {
+    if (nullptr != _sprite) {
+        return _sprite->getPositionY() + _sprite->getHeight() / 2;
+    }
+    return 0;
 }
 
 void GameEntity::setDimensions(int w, int h) {

@@ -25,6 +25,8 @@ class GameEntity {
         void addRectangleTextureComponent(std::string filePath, Uint8 colorKeyRed, Uint8 colorKeyGreen, Uint8 colorKeyBlue);
         void addCollider();
         void setPosition(int x, int y);
+        int getPositionX() const;
+        int getPositionY() const;
         void setDimensions(int w, int h);
         void update();
         void render();
