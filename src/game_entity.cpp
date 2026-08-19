@@ -46,7 +46,7 @@ void GameEntity::setPosition(int x, int y) {
     int w = (_sprite != nullptr) ? _sprite->getWidth() : 0;
     int h = (_sprite != nullptr) ? _sprite->getHeight() : 0;
     int tlX = x - w / 2;
-    int tlY = y - h / 2;
+    int tlY = y - h;
     if (nullptr != _sprite) {
         _sprite->setPosition(tlX, tlY);
     }
@@ -66,7 +66,7 @@ int GameEntity::getPositionX() const {
 
 int GameEntity::getPositionY() const {
     if (nullptr != _sprite) {
-        return _sprite->getPositionY() + _sprite->getHeight() / 2;
+        return _sprite->getPositionY() + _sprite->getHeight();
     }
     return 0;
 }

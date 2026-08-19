@@ -59,10 +59,10 @@ void PathGrid::toISO(int x, int y, int* sx, int* sy) {
 }
 
 void PathGrid::fromISO(int px, int py, int* gx, int* gy) {
-    int dx = px - MAP_RENDER_OFFSET_X;
-    int dy = py - MAP_RENDER_OFFSET_Y;
-    double tx = (dx / (TILE_WIDTH / 2.0) - dy / (TILE_HEIGHT / 2.0)) / 2.0;
-    double ty = (dx / (TILE_WIDTH / 2.0) + dy / (TILE_HEIGHT / 2.0)) / 2.0;
+    int dx = px - MAP_RENDER_OFFSET_X - TILE_WIDTH / 2;
+    int dy = py - MAP_RENDER_OFFSET_Y - TILE_HEIGHT / 2;
+    double tx = (dx / (double)TILE_WIDTH - dy / (double)TILE_HEIGHT);
+    double ty = (dx / (double)TILE_WIDTH + dy / (double)TILE_HEIGHT);
     *gx = (int)std::round(tx);
     *gy = (int)std::round(ty);
 }
