@@ -12,6 +12,7 @@
 #include <vector>
 #include <memory>
 #include <algorithm>
+#include <functional>
 
 #include <SDL2/SDL.h> 
 #include <SDL2/SDL_ttf.h>
@@ -73,6 +74,12 @@ SDL_Texture* tileTexture = nullptr;
 int tileTextureW = 0;
 int tileTextureH = 0;
 double drawTimer = 0;
+
+struct ISORenderEntry {
+    int sortY;
+    std::function<void()> render;
+};
+std::vector<ISORenderEntry> renderEntries;
 
 void setPixel(SDL_Surface* surface, int mouseX, int mouseY, uint8_t r, uint8_t g, uint8_t b) {
     std::cout << "mouse coords:" << mouseX << "," << mouseY << "\n";
@@ -268,57 +275,61 @@ void handleRendering() {
         selectionBox->render();
     }
 
-    for (const auto& unit : units) {
-        AnimatedSprite* animSprite = dynamic_cast<AnimatedSprite*>(&unit->getGameEntity().getSprite());
-        if (animSprite) {
-            static int unitFrameNum = 0;
-            animSprite->playFrame(0, 0, 32, 44, unitFrameNum);
-            unitFrameNum++;
-        }
-        unit->getGameEntity().render();
-    }
+    renderEntries.clear();
 
     for (const auto& unit : units) {
-        Action* action = unit->getCurrentAction();
-        PathAction* pathAction = dynamic_cast<PathAction*>(action);
-        if (!pathAction) continue;
-        const auto& path = pathAction->getPath();
-        int wp = pathAction->getCurrentWaypoint();
-        if (path.empty()) continue;
+        int sortY = unit->getGameEntity().getPositionY();
+        renderEntries.push_back({sortY, [unit]() {
+            AnimatedSprite* animSprite = dynamic_cast<AnimatedSprite*>(&unit->getGameEntity().getSprite());
+            if (animSprite) {
+                static int unitFrameNum = 0;
+                animSprite->playFrame(0, 0, 32, 44, unitFrameNum);
+                unitFrameNum++;
+            }
+            unit->getGameEntity().render();
 
-        SDL_Renderer* r = app->getRenderer();
-        int ux = unit->getGameEntity().getPositionX();
-        int uy = unit->getGameEntity().getPositionY();
-
-        int startX = ux, startY = uy;
-        for (size_t i = wp; i < path.size(); i++) {
-            SDL_SetRenderDrawColor(r, 0, 200, 255, SDL_ALPHA_OPAQUE);
-            SDL_RenderDrawLine(r, startX, startY, path[i].first, path[i].second);
-            startX = path[i].first;
-            startY = path[i].second;
-        }
+            Action* action = unit->getCurrentAction();
+            PathAction* pathAction = dynamic_cast<PathAction*>(action);
+            if (pathAction) {
+                const auto& path = pathAction->getPath();
+                int wp = pathAction->getCurrentWaypoint();
+                if (!path.empty()) {
+                    SDL_Renderer* r = app->getRenderer();
+                    int startX = unit->getGameEntity().getPositionX();
+                    int startY = unit->getGameEntity().getPositionY();
+                    for (size_t i = wp; i < path.size(); i++) {
+                        SDL_SetRenderDrawColor(r, 0, 200, 255, SDL_ALPHA_OPAQUE);
+                        SDL_RenderDrawLine(r, startX, startY, path[i].first, path[i].second);
+                        startX = path[i].first;
+                        startY = path[i].second;
+                    }
+                }
+            }
+        }});
     }
 
-    SDL_SetRenderDrawColor(app->getRenderer(), 100, 60, 20, SDL_ALPHA_OPAQUE);
     for (const auto& obs : obstacles) {
         int sx, sy;
         PathGrid::toISO(obs.x, obs.y, &sx, &sy);
-        // SDL_Point points[5];
-        // points[0] = {sx + TILE_WIDTH / 2, sy};
-        // points[1] = {sx + TILE_WIDTH, sy + TILE_HEIGHT / 2};
-        // points[2] = {sx + TILE_WIDTH / 2, sy + TILE_HEIGHT};
-        // points[3] = {sx, sy + TILE_HEIGHT / 2};
-        // points[4] = {sx + TILE_WIDTH / 2, sy};
-        // SDL_RenderDrawLines(app->getRenderer(), points, 5);
-        SDL_Color fillColor = {100, 60, 20, SDL_ALPHA_OPAQUE};
-        SDL_Vertex vertices[4] = {
-            { SDL_FPoint{(float)(sx + TILE_WIDTH / 2), (float)sy}, fillColor, SDL_FPoint{0.0f, 0.0f} }, // Top
-            { SDL_FPoint{(float)(sx + TILE_WIDTH), (float)(sy + TILE_HEIGHT / 2)}, fillColor, SDL_FPoint{0.0f, 0.0f} }, // Right
-            { SDL_FPoint{(float)(sx + TILE_WIDTH / 2), (float)(sy + TILE_HEIGHT)}, fillColor, SDL_FPoint{0.0f, 0.0f} }, // Bottom
-            { SDL_FPoint{(float)sx, (float)(sy + TILE_HEIGHT / 2)}, fillColor, SDL_FPoint{0.0f, 0.0f} }  // Left
-        };
-        int indices[6] = {0, 1, 2, 0, 2, 3};
-        SDL_RenderGeometry(app->getRenderer(), NULL, vertices, 4, indices, 6);
+        int sortY = sy + TILE_HEIGHT / 2;
+        renderEntries.push_back({sortY, [obs, sx, sy]() {
+            SDL_Color fillColor = {100, 60, 20, SDL_ALPHA_OPAQUE};
+            SDL_Vertex vertices[4] = {
+                { SDL_FPoint{(float)(sx + TILE_WIDTH / 2), (float)sy}, fillColor, SDL_FPoint{0.0f, 0.0f} },
+                { SDL_FPoint{(float)(sx + TILE_WIDTH), (float)(sy + TILE_HEIGHT / 2)}, fillColor, SDL_FPoint{0.0f, 0.0f} },
+                { SDL_FPoint{(float)(sx + TILE_WIDTH / 2), (float)(sy + TILE_HEIGHT)}, fillColor, SDL_FPoint{0.0f, 0.0f} },
+                { SDL_FPoint{(float)sx, (float)(sy + TILE_HEIGHT / 2)}, fillColor, SDL_FPoint{0.0f, 0.0f} }
+            };
+            int indices[6] = {0, 1, 2, 0, 2, 3};
+            SDL_RenderGeometry(app->getRenderer(), NULL, vertices, 4, indices, 6);
+        }});
+    }
+
+    std::sort(renderEntries.begin(), renderEntries.end(),
+        [](const ISORenderEntry& a, const ISORenderEntry& b) { return a.sortY < b.sortY; });
+
+    for (const auto& entry : renderEntries) {
+        entry.render();
     }
 
     std::string textContent = "Martin";
