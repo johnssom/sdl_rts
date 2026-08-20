@@ -29,10 +29,13 @@ class UnitEntity {
         int _animFrame = 0;
         bool _isMoving = false;
         int _animTimer = 0;
+        int _team = 0;
 
     public:
         UnitEntity(GameEntity* gameEntity);
         GameEntity& getGameEntity();
+        void setTeam(int team);
+        int getTeam() const;
         void pushAction(std::unique_ptr<Action> newAction);
         void commandMove(int x, int y);
         void queueMoveCommand(int x, int y);

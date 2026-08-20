@@ -24,15 +24,17 @@ class Building {
         bool _isProducing;
         double _productionTimer;
         double _productionTime;
+        int _team = 0;
         std::vector<ButtonDefinition> _buttonDefs;
 
     public:
-        Building(SDL_Renderer* renderer, int tileX, int tileY, int tileW, int tileH, double productionTime);
+        Building(SDL_Renderer* renderer, int tileX, int tileY, int tileW, int tileH, double productionTime, int team = 0);
 
         int getTileX() const;
         int getTileY() const;
         int getTileW() const;
         int getTileH() const;
+        int getTeam() const;
         bool isProducing() const;
         double getProgress() const;
 

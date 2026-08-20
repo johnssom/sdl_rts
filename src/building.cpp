@@ -2,14 +2,15 @@
 #include "path_grid.h"
 #include <cmath>
 
-Building::Building(SDL_Renderer* renderer, int tileX, int tileY, int tileW, int tileH, double productionTime)
+Building::Building(SDL_Renderer* renderer, int tileX, int tileY, int tileW, int tileH, double productionTime, int team)
     : _renderer(renderer), _tileX(tileX), _tileY(tileY), _tileW(tileW), _tileH(tileH),
-      _isProducing(false), _productionTimer(0.0), _productionTime(productionTime) {}
+      _isProducing(false), _productionTimer(0.0), _productionTime(productionTime), _team(team) {}
 
 int Building::getTileX() const { return _tileX; }
 int Building::getTileY() const { return _tileY; }
 int Building::getTileW() const { return _tileW; }
 int Building::getTileH() const { return _tileH; }
+int Building::getTeam() const { return _team; }
 bool Building::isProducing() const { return _isProducing; }
 
 double Building::getProgress() const {

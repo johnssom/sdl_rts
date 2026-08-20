@@ -10,6 +10,14 @@ GameEntity& UnitEntity::getGameEntity() {
     return *_gameEntity;
 }
 
+void UnitEntity::setTeam(int team) {
+    _team = team;
+}
+
+int UnitEntity::getTeam() const {
+    return _team;
+}
+
 void UnitEntity::commandMove(int x, int y) {
     _commandQueue.clear();
     queueMoveCommand(x, y);

@@ -90,7 +90,7 @@ LoadingBar* productionBar = nullptr;
 Building* selectedBuilding = nullptr;
 ButtonPanel* buttonPanel = nullptr;
 
-void spawnUnitAtTile(int tileX, int tileY) {
+void spawnUnitAtTile(int tileX, int tileY, int team = 0) {
     int sx, sy;
     PathGrid::tileToISO(tileX, tileY, &sx, &sy);
     GameEntity* ge = new GameEntity(app->getRenderer());
@@ -101,6 +101,7 @@ void spawnUnitAtTile(int tileX, int tileY) {
     ge->getCollider(0).setDimensions(PATH_CELL_WIDTH / 2, PATH_CELL_HEIGHT);
     ge->getCollider(0).setPosition(sx + TILE_WIDTH / 2 - PATH_CELL_WIDTH / 2, sy + TILE_HEIGHT / 2 - PATH_CELL_HEIGHT / 2);
     auto unit = std::make_unique<UnitEntity>(ge);
+    unit->setTeam(team);
     unit->setUnitsContext(&units);
     unit->setObstaclesContext(&obstacles);
     unit->setPathGrid(pathGrid);
@@ -378,7 +379,7 @@ void handleUpdates() {
         building.update(10.0);
         if (building.isDone()) {
             building.resetProduction();
-            spawnUnitAtTile(building.getTileX() - 1, building.getTileY());
+            spawnUnitAtTile(building.getTileX() - 1, building.getTileY(), building.getTeam());
         }
     }
 
@@ -445,9 +446,16 @@ void handleRendering() {
             float hh = ch / 2.0f;
 
             SDL_Renderer* r = app->getRenderer();
-            SDL_Color leftColor  = {255, 120, 180, 200};
-            SDL_Color rightColor = {255, 90, 140, 200};
-            SDL_Color topColor   = {255, 150, 210, 200};
+            SDL_Color leftColor, rightColor, topColor;
+            if (unit->getTeam() == 0) {
+                leftColor  = {255, 120, 180, 200};
+                rightColor = {255, 90, 140, 200};
+                topColor   = {255, 150, 210, 200};
+            } else {
+                leftColor  = {80, 130, 255, 200};
+                rightColor = {50, 100, 220, 200};
+                topColor   = {110, 160, 255, 200};
+            }
             int indices[6] = {0, 1, 2, 0, 2, 3};
 
             SDL_Vertex leftVerts[4] = {
@@ -525,9 +533,16 @@ void handleRendering() {
             int h = BUILDING_HEIGHT;
             SDL_Renderer* r = app->getRenderer();
 
-            SDL_Color topColor    = {160, 150, 130, SDL_ALPHA_OPAQUE};
-            SDL_Color leftColor   = {110, 100,  85, SDL_ALPHA_OPAQUE};
-            SDL_Color rightColor  = { 80,  75,  65, SDL_ALPHA_OPAQUE};
+            SDL_Color topColor, leftColor, rightColor;
+            if (building.getTeam() == 0) {
+                topColor   = {180, 130, 130, SDL_ALPHA_OPAQUE};
+                leftColor  = {140,  90,  90, SDL_ALPHA_OPAQUE};
+                rightColor = {110,  70,  70, SDL_ALPHA_OPAQUE};
+            } else {
+                topColor   = {130, 140, 180, SDL_ALPHA_OPAQUE};
+                leftColor  = { 90, 100, 140, SDL_ALPHA_OPAQUE};
+                rightColor = { 70,  80, 110, SDL_ALPHA_OPAQUE};
+            }
 
             SDL_Vertex topVerts[4] = {
                 { SDL_FPoint{d.topX,    d.topY - h},    topColor, SDL_FPoint{0,0} },
@@ -622,12 +637,20 @@ int main(int argc, char* argv[]){
     productionBar = new LoadingBar(0, 0, 60.0f, 8.0f);
     buttonPanel = new ButtonPanel(app->getRenderer());
 
-    buildings.push_back(Building(app->getRenderer(), 12, 12, 2, 2, 2000.0));
-    Building& b = buildings.back();
-    b.addButtonDef("./assets/img/pioneer.bmp", 64, 64,
-        [&b]() {
-            if (!b.isProducing()) {
-                b.startProduction();
+    buildings.push_back(Building(app->getRenderer(), 12, 12, 2, 2, 2000.0, 0));
+    buildings.push_back(Building(app->getRenderer(), 6, 18, 2, 2, 2000.0, 1));
+
+    buildings[0].addButtonDef("./assets/img/char.bmp", 64, 64,
+        []() {
+            if (!buildings[0].isProducing()) {
+                buildings[0].startProduction();
+            }
+        });
+
+    buildings[1].addButtonDef("./assets/img/pioneer.bmp", 64, 64,
+        []() {
+            if (!buildings[1].isProducing()) {
+                buildings[1].startProduction();
             }
         });
 
