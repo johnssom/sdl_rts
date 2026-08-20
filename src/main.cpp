@@ -232,22 +232,58 @@ void handleEvents() {
                             }
                         }
                     } else {
-                        PathGrid::GridCoord center = pathGrid->pixelToGrid(app->getMouseX(), app->getMouseY());
-                        int cols = (int)std::ceil(std::sqrt((double)n));
-                        int rows = (int)std::ceil((double)n / cols);
-                        int i = 0;
-                        for (const auto& selectedUnit : selectedUnits) {
-                            int col = i % cols;
-                            int row = i / cols;
-                            int gx = center.x + (col - (cols - 1)) * 3;
-                            int gy = center.y + (row - (rows - 1)) * 3;
-                            auto [px, py] = pathGrid->gridToPixel(gx, gy);
-                            if (state[SDL_SCANCODE_LSHIFT]) {
-                                selectedUnit->queueMoveCommand(px, py);
-                            } else {
-                                selectedUnit->commandMove(px, py);
+                        double avgPX = 0, avgPY = 0;
+                        for (const auto& u : selectedUnits) {
+                            avgPX += u->getGameEntity().getPositionX();
+                            avgPY += u->getGameEntity().getPositionY();
+                        }
+                        avgPX /= n;
+                        avgPY /= n;
+                        PathGrid::GridCoord avgGC = pathGrid->pixelToGrid((int)avgPX, (int)avgPY);
+
+                        PathGrid::GridCoord target = pathGrid->pixelToGrid(app->getMouseX(), app->getMouseY());
+                        double maxDist2 = (double)(target.x - avgGC.x) * (target.x - avgGC.x)
+                                        + (double)(target.y - avgGC.y) * (target.y - avgGC.y);
+
+                        struct Target { int gx, gy; };
+                        std::vector<Target> targets;
+                        targets.push_back({target.x, target.y});
+                        for (int radius = 3; (int)targets.size() < n; radius += 3) {
+                            for (int dx = -radius; dx <= radius; dx += 3) {
+                                for (int dy = -radius; dy <= radius; dy += 3) {
+                                    if (std::abs(dx) != radius && std::abs(dy) != radius) continue;
+                                    int gx = target.x + dx;
+                                    int gy = target.y + dy;
+                                    double d2 = (double)(gx - avgGC.x) * (gx - avgGC.x)
+                                              + (double)(gy - avgGC.y) * (gy - avgGC.y);
+                                    if (d2 <= maxDist2) {
+                                        targets.push_back({gx, gy});
+                                        if ((int)targets.size() >= n) break;
+                                    }
+                                }
+                                if ((int)targets.size() >= n) break;
                             }
-                            i++;
+                        }
+
+                        std::vector<std::pair<std::shared_ptr<UnitEntity>, double>> indexed(n);
+                        for (int i = 0; i < n; i++) {
+                            indexed[i].first = selectedUnits[i];
+                            int ux = selectedUnits[i]->getGameEntity().getPositionX();
+                            int uy = selectedUnits[i]->getGameEntity().getPositionY();
+                            indexed[i].second = (ux - app->getMouseX()) * (ux - app->getMouseX())
+                                              + (uy - app->getMouseY()) * (uy - app->getMouseY());
+                        }
+                        std::sort(indexed.begin(), indexed.end(), [](const auto& a, const auto& b) {
+                            return a.second > b.second;
+                        });
+
+                        for (int i = 0; i < n && i < (int)targets.size(); i++) {
+                            auto [px, py] = pathGrid->gridToPixel(targets[i].gx, targets[i].gy);
+                            if (state[SDL_SCANCODE_LSHIFT]) {
+                                indexed[i].first->queueMoveCommand(px, py);
+                            } else {
+                                indexed[i].first->commandMove(px, py);
+                            }
                         }
                     }
                 }
