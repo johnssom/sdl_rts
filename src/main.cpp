@@ -490,6 +490,17 @@ void handleRendering() {
             }
             unit->getGameEntity().render();
 
+            float healthProgress = (float)unit->getHealth() / (float)unit->getMaxHealth();
+            float barW = 30.0f;
+            float barH = 4.0f;
+            float barX = ax - barW / 2.0f;
+            float barY = (float)(ay - boxH - hh) - barH - 4.0f;
+            LoadingBar healthBar(barX, barY, barW, barH);
+            SDL_Color barBg = {40, 40, 40, 191};
+            SDL_Color barFill = {255, 255, 255, 255};
+            healthBar.setColors(barBg, barFill);
+            healthBar.render(r, healthProgress);
+
             Action* action = unit->getCurrentAction();
             PathAction* pathAction = dynamic_cast<PathAction*>(action);
             if (pathAction) {

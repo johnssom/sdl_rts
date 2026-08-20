@@ -21,6 +21,7 @@ class UnitEntity {
         GameEntity* _gameEntity;
         std::vector<std::unique_ptr<Action>> _commandQueue;
         int _health = 80;
+        int _maxHealth = 80;
         bool _isSelected = false;
         std::vector<std::shared_ptr<UnitEntity>>* _allUnitsPtr = nullptr;
         std::vector<Obstacle>* _obstaclesPtr = nullptr;
@@ -36,6 +37,8 @@ class UnitEntity {
         GameEntity& getGameEntity();
         void setTeam(int team);
         int getTeam() const;
+        int getHealth() const;
+        int getMaxHealth() const;
         void pushAction(std::unique_ptr<Action> newAction);
         void commandMove(int x, int y);
         void queueMoveCommand(int x, int y);

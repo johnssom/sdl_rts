@@ -18,6 +18,14 @@ int UnitEntity::getTeam() const {
     return _team;
 }
 
+int UnitEntity::getHealth() const {
+    return _health;
+}
+
+int UnitEntity::getMaxHealth() const {
+    return _maxHealth;
+}
+
 void UnitEntity::commandMove(int x, int y) {
     _commandQueue.clear();
     queueMoveCommand(x, y);
