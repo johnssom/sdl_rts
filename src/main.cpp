@@ -46,6 +46,18 @@ std::vector<std::shared_ptr<UnitEntity>> selectedUnits;
 std::vector<Obstacle> obstacles;
 PathGrid* pathGrid = nullptr;
 
+struct Bullet {
+    float x, y;
+    float dx, dy;
+    float speed = 5.0f;
+    UnitEntity* target = nullptr;
+    UnitEntity* shooter = nullptr;
+    float spawnX, spawnY;
+    float maxDist = 200.0f;
+    bool active = true;
+};
+std::vector<Bullet> bullets;
+
 #define SCREEN_WIDTH              1600
 #define SCREEN_HEIGHT             900
 
@@ -383,6 +395,83 @@ void handleUpdates() {
         }
     }
 
+    for (auto& unit : units) {
+        if (unit->getFireCooldown() > 0) {
+            unit->setFireCooldown(unit->getFireCooldown() - 1);
+        }
+        if (unit->isDead() || unit->getFireCooldown() > 0) continue;
+
+        float ux = (float)unit->getGameEntity().getPositionX();
+        float uy = (float)unit->getGameEntity().getPositionY();
+        UnitEntity* closestEnemy = nullptr;
+        float closestDist = 200.0f;
+        for (auto& other : units) {
+            if (other.get() == unit.get() || other->getTeam() == unit->getTeam() || other->isDead()) continue;
+            float ox = (float)other->getGameEntity().getPositionX();
+            float oy = (float)other->getGameEntity().getPositionY();
+            float dist = std::sqrt((ux - ox) * (ux - ox) + (uy - oy) * (uy - oy));
+            if (dist < closestDist) {
+                closestDist = dist;
+                closestEnemy = other.get();
+            }
+        }
+        if (closestEnemy) {
+            float ex = (float)closestEnemy->getGameEntity().getPositionX();
+            float ey = (float)closestEnemy->getGameEntity().getPositionY();
+            float ddx = ex - ux;
+            float ddy = ey - uy;
+            float len = std::sqrt(ddx * ddx + ddy * ddy);
+            if (len > 0.01f) {
+                Bullet b;
+                b.x = ux;
+                b.y = uy;
+                b.spawnX = ux;
+                b.spawnY = uy;
+                b.dx = ddx / len;
+                b.dy = ddy / len;
+                b.target = closestEnemy;
+                b.shooter = unit.get();
+                b.speed = 5.0f;
+                b.maxDist = 200.0f;
+                bullets.push_back(b);
+                unit->setFireCooldown(30);
+            }
+        }
+    }
+
+    for (auto& b : bullets) {
+        if (!b.active) continue;
+        b.x += b.dx * b.speed;
+        b.y += b.dy * b.speed;
+
+        float traveled = std::sqrt((b.x - b.spawnX) * (b.x - b.spawnX) + (b.y - b.spawnY) * (b.y - b.spawnY));
+        if (traveled > b.maxDist) {
+            b.active = false;
+            continue;
+        }
+
+        if (b.target && !b.target->isDead()) {
+            float tx = (float)b.target->getGameEntity().getPositionX();
+            float ty = (float)b.target->getGameEntity().getPositionY();
+            float hitDist = std::sqrt((b.x - tx) * (b.x - tx) + (b.y - ty) * (b.y - ty));
+            if (hitDist < 10.0f) {
+                b.target->setHealth(b.target->getHealth() - 10);
+                b.active = false;
+            }
+        } else {
+            b.active = false;
+        }
+    }
+    bullets.erase(
+        std::remove_if(bullets.begin(), bullets.end(), [](const Bullet& b) { return !b.active; }),
+        bullets.end()
+    );
+
+    auto it = std::remove_if(units.begin(), units.end(), [](const std::shared_ptr<UnitEntity>& u) {
+        return u->isDead();
+    });
+    units.erase(it, units.end());
+
     drawTimer = std::min(drawTimer + ISO_RENDER_SPEED, (double)numISOObjects);
     SDL_Delay(10);
 }
@@ -596,6 +685,16 @@ void handleRendering() {
 
     for (const auto& entry : renderEntries) {
         entry.render();
+    }
+
+    for (const auto& b : bullets) {
+        if (!b.active) continue;
+        SDL_SetRenderDrawColor(app->getRenderer(), 255, 255, 0, SDL_ALPHA_OPAQUE);
+        SDL_RenderDrawPointF(app->getRenderer(), b.x, b.y);
+        SDL_RenderDrawPointF(app->getRenderer(), b.x - 1, b.y);
+        SDL_RenderDrawPointF(app->getRenderer(), b.x + 1, b.y);
+        SDL_RenderDrawPointF(app->getRenderer(), b.x, b.y - 1);
+        SDL_RenderDrawPointF(app->getRenderer(), b.x, b.y + 1);
     }
 
     if (buttonPanel) {

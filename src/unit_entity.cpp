@@ -26,6 +26,22 @@ int UnitEntity::getMaxHealth() const {
     return _maxHealth;
 }
 
+void UnitEntity::setHealth(int health) {
+    _health = health;
+}
+
+bool UnitEntity::isDead() const {
+    return _health <= 0;
+}
+
+int UnitEntity::getFireCooldown() const {
+    return _fireCooldown;
+}
+
+void UnitEntity::setFireCooldown(int cooldown) {
+    _fireCooldown = cooldown;
+}
+
 void UnitEntity::commandMove(int x, int y) {
     _commandQueue.clear();
     queueMoveCommand(x, y);

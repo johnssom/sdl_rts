@@ -31,6 +31,7 @@ class UnitEntity {
         bool _isMoving = false;
         int _animTimer = 0;
         int _team = 0;
+        int _fireCooldown = 0;
 
     public:
         UnitEntity(GameEntity* gameEntity);
@@ -39,6 +40,10 @@ class UnitEntity {
         int getTeam() const;
         int getHealth() const;
         int getMaxHealth() const;
+        void setHealth(int health);
+        bool isDead() const;
+        int getFireCooldown() const;
+        void setFireCooldown(int cooldown);
         void pushAction(std::unique_ptr<Action> newAction);
         void commandMove(int x, int y);
         void queueMoveCommand(int x, int y);
