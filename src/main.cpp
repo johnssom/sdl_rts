@@ -12,6 +12,7 @@
 #include <vector>
 #include <memory>
 #include <algorithm>
+#include <climits>
 #include <cmath>
 #include <functional>
 
@@ -97,7 +98,7 @@ void spawnUnitAtTile(int tileX, int tileY) {
     ge->addCollider();
     ge->setDimensions(30, 50);
     ge->setPosition(sx + TILE_WIDTH / 2, sy + TILE_HEIGHT / 2);
-    ge->getCollider(0).setDimensions(PATH_CELL_WIDTH, PATH_CELL_HEIGHT);
+    ge->getCollider(0).setDimensions(PATH_CELL_WIDTH / 2, PATH_CELL_HEIGHT);
     ge->getCollider(0).setPosition(sx + TILE_WIDTH / 2 - PATH_CELL_WIDTH / 2, sy + TILE_HEIGHT / 2 - PATH_CELL_HEIGHT / 2);
     auto unit = std::make_unique<UnitEntity>(ge);
     unit->setUnitsContext(&units);
@@ -242,18 +243,36 @@ void handleEvents() {
                         PathGrid::GridCoord avgGC = pathGrid->pixelToGrid((int)avgPX, (int)avgPY);
 
                         PathGrid::GridCoord target = pathGrid->pixelToGrid(app->getMouseX(), app->getMouseY());
+                        if (!pathGrid->isWalkable(target.x, target.y)) {
+                            int bestDist2 = INT_MAX;
+                            for (int dx = -3; dx <= 3; dx++) {
+                                for (int dy = -3; dy <= 3; dy++) {
+                                    int gx = target.x + dx;
+                                    int gy = target.y + dy;
+                                    if (!pathGrid->isWalkable(gx, gy)) continue;
+                                    int d2 = dx * dx + dy * dy;
+                                    if (d2 < bestDist2) {
+                                        bestDist2 = d2;
+                                        target = {gx, gy};
+                                    }
+                                }
+                            }
+                        }
                         double maxDist2 = (double)(target.x - avgGC.x) * (target.x - avgGC.x)
                                         + (double)(target.y - avgGC.y) * (target.y - avgGC.y);
 
                         struct Target { int gx, gy; };
                         std::vector<Target> targets;
-                        targets.push_back({target.x, target.y});
+                        if (pathGrid->isWalkable(target.x, target.y)) {
+                            targets.push_back({target.x, target.y});
+                        }
                         for (int radius = 3; (int)targets.size() < n; radius += 3) {
                             for (int dx = -radius; dx <= radius; dx += 3) {
                                 for (int dy = -radius; dy <= radius; dy += 3) {
                                     if (std::abs(dx) != radius && std::abs(dy) != radius) continue;
                                     int gx = target.x + dx;
                                     int gy = target.y + dy;
+                                    if (!pathGrid->isWalkable(gx, gy)) continue;
                                     double d2 = (double)(gx - avgGC.x) * (gx - avgGC.x)
                                               + (double)(gy - avgGC.y) * (gy - avgGC.y);
                                     if (d2 <= maxDist2) {
@@ -274,7 +293,7 @@ void handleEvents() {
                                               + (uy - app->getMouseY()) * (uy - app->getMouseY());
                         }
                         std::sort(indexed.begin(), indexed.end(), [](const auto& a, const auto& b) {
-                            return a.second > b.second;
+                            return a.second < b.second;
                         });
 
                         for (int i = 0; i < n && i < (int)targets.size(); i++) {
