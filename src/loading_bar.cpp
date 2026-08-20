@@ -2,8 +2,8 @@
 
 LoadingBar::LoadingBar(float x, float y, float w, float h)
     : _x(x), _y(y), _w(w), _h(h),
-      _bgColor({40, 40, 40, SDL_ALPHA_OPAQUE}),
-      _fillColor({0, 200, 80, SDL_ALPHA_OPAQUE}) {}
+      _bgColor({40, 40, 40, 191 }),
+      _fillColor({255, 255, 255, SDL_ALPHA_OPAQUE}) {}
 
 void LoadingBar::setPosition(float x, float y) {
     _x = x;
@@ -20,6 +20,7 @@ void LoadingBar::render(SDL_Renderer* renderer, float progress) const {
     if (progress < 0.0f) progress = 0.0f;
 
     SDL_Rect bgRect = {(int)_x, (int)_y, (int)_w, (int)_h};
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, _bgColor.r, _bgColor.g, _bgColor.b, _bgColor.a);
     SDL_RenderFillRect(renderer, &bgRect);
 

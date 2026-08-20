@@ -29,7 +29,7 @@
 #include "path_grid.h"
 #include "building.h"
 #include "loading_bar.h"
-#include "button.h"
+#include "button_panel.h"
 
 SDLApp* app;
 
@@ -85,6 +85,8 @@ std::vector<ISORenderEntry> renderEntries;
 
 std::vector<Building> buildings;
 LoadingBar* productionBar = nullptr;
+Building* selectedBuilding = nullptr;
+ButtonPanel* buttonPanel = nullptr;
 
 void spawnUnitAtTile(int tileX, int tileY) {
     int sx, sy;
@@ -234,8 +236,23 @@ void handleEvents() {
                     int mx = event.button.x;
                     int my = event.button.y;
 
+                    if (selectedBuilding && buttonPanel->handleClick(mx, my)) {
+                        selector.isDragging = false;
+                        break;
+                    }
+
+                    bool selectedNew = false;
                     for (auto& building : buildings) {
-                        building.handleButtonClick(mx, my);
+                        if (building.isInsideFootprint(mx, my)) {
+                            selectedBuilding = &building;
+                            buttonPanel->populate(building.getButtonDefs());
+                            selectedNew = true;
+                            break;
+                        }
+                    }
+                    if (!selectedNew) {
+                        selectedBuilding = nullptr;
+                        buttonPanel->clear();
                     }
 
                     int dx = selector.currX - selector.startX;
@@ -437,8 +454,8 @@ void handleRendering() {
         entry.render();
     }
 
-    for (auto& building : buildings) {
-        building.renderButtons();
+    if (buttonPanel) {
+        buttonPanel->render();
     }
 
     std::string textContent = "Martin";
@@ -482,11 +499,11 @@ int main(int argc, char* argv[]){
     drawTimer = 0;
 
     productionBar = new LoadingBar(0, 0, 60.0f, 8.0f);
+    buttonPanel = new ButtonPanel(app->getRenderer());
 
     buildings.push_back(Building(app->getRenderer(), 12, 12, 2, 2, 5000.0));
     Building& b = buildings.back();
-    b.addButton("./assets/img/pioneer.bmp",
-        SCREEN_WIDTH - 160, SCREEN_HEIGHT - 60, 64, 64,
+    b.addButtonDef("./assets/img/pioneer.bmp", 64, 64,
         [&b]() {
             if (!b.isProducing()) {
                 b.startProduction();
@@ -513,6 +530,7 @@ int main(int argc, char* argv[]){
     delete collisionSound;
     delete pathGrid;
     delete productionBar;
+    delete buttonPanel;
     if (tileTexture) SDL_DestroyTexture(tileTexture);
 
     return 0;

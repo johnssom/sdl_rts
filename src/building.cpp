@@ -1,5 +1,4 @@
 #include "building.h"
-#include "button.h"
 #include "path_grid.h"
 #include <cmath>
 
@@ -72,35 +71,12 @@ bool Building::isInsideFootprint(int px, int py) const {
     return (dx + dy <= 1.0);
 }
 
-void Building::addButton(std::string filePath, int x, int y, int w, int h, std::function<void()> onClick) {
-    Button* btn = new Button(_renderer, filePath, x, y, w, h);
-    btn->setOnClick(onClick);
-    _buttons.push_back(btn);
+void Building::addButtonDef(std::string imagePath, int w, int h, std::function<void()> onClick) {
+    _buttonDefs.push_back({imagePath, w, h, onClick});
 }
 
-const std::vector<Button*>& Building::getButtons() const {
-    return _buttons;
-}
-
-void Building::renderButtons() {
-    for (auto* btn : _buttons) {
-        btn->render(_renderer);
-    }
-}
-
-void Building::handleButtonClick(int px, int py) {
-    for (auto* btn : _buttons) {
-        if (btn->containsPoint(px, py)) {
-            btn->handleClick();
-            break;
-        }
-    }
-}
-
-Building::~Building() {
-    for (auto* btn : _buttons) {
-        delete btn;
-    }
+const std::vector<ButtonDefinition>& Building::getButtonDefs() const {
+    return _buttonDefs;
 }
 
 bool Building::isInsideAnyFootprint(int px, int py, const std::vector<Building>& buildings) {

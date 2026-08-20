@@ -9,7 +9,7 @@
 #define TILE_WIDTH  60
 #define TILE_HEIGHT 30
 
-class Button;
+#include "button_panel.h"
 
 struct BuildingDiamond {
     float cx, cy, hw, hh;
@@ -24,7 +24,7 @@ class Building {
         bool _isProducing;
         double _productionTimer;
         double _productionTime;
-        std::vector<Button*> _buttons;
+        std::vector<ButtonDefinition> _buttonDefs;
 
     public:
         Building(SDL_Renderer* renderer, int tileX, int tileY, int tileW, int tileH, double productionTime);
@@ -41,17 +41,13 @@ class Building {
         bool isDone() const;
         void resetProduction();
 
-        void addButton(std::string filePath, int x, int y, int w, int h, std::function<void()> onClick);
-        const std::vector<Button*>& getButtons() const;
-        void renderButtons();
-        void handleButtonClick(int px, int py);
+        void addButtonDef(std::string imagePath, int w, int h, std::function<void()> onClick);
+        const std::vector<ButtonDefinition>& getButtonDefs() const;
 
         BuildingDiamond getBuildingDiamond() const;
         bool isInsideFootprint(int px, int py) const;
 
         static bool isInsideAnyFootprint(int px, int py, const std::vector<Building>& buildings);
-
-        ~Building();
 };
 
 #endif
