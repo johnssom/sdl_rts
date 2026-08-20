@@ -12,6 +12,7 @@
 #include <vector>
 #include <memory>
 #include <algorithm>
+#include <cmath>
 #include <functional>
 
 #include <SDL2/SDL.h> 
@@ -94,8 +95,10 @@ void spawnUnitAtTile(int tileX, int tileY) {
     GameEntity* ge = new GameEntity(app->getRenderer());
     ge->setSprite(new AnimatedSprite(app->getRenderer(), "./assets/img/iso_char.bmp"));
     ge->addCollider();
-    ge->setDimensions(20, 50);
+    ge->setDimensions(30, 50);
     ge->setPosition(sx + TILE_WIDTH / 2, sy + TILE_HEIGHT / 2);
+    ge->getCollider(0).setDimensions(PATH_CELL_WIDTH, PATH_CELL_HEIGHT);
+    ge->getCollider(0).setPosition(sx + TILE_WIDTH / 2 - PATH_CELL_WIDTH / 2, sy + TILE_HEIGHT / 2 - PATH_CELL_HEIGHT / 2);
     auto unit = std::make_unique<UnitEntity>(ge);
     unit->setUnitsContext(&units);
     unit->setObstaclesContext(&obstacles);
@@ -219,11 +222,32 @@ void handleEvents() {
                 break;
             case SDL_MOUSEBUTTONDOWN:
                 if (event.button.button == SDL_BUTTON_RIGHT) {
-                    for (const auto& selectedUnit : selectedUnits) {
-                        if (state[SDL_SCANCODE_LSHIFT]) {
-                            selectedUnit->queueMoveCommand(app->getMouseX(), app->getMouseY());
-                        } else {
-                            selectedUnit->commandMove(app->getMouseX(), app->getMouseY());
+                    int n = selectedUnits.size();
+                    if (n == 1 || !pathGrid) {
+                        for (const auto& selectedUnit : selectedUnits) {
+                            if (state[SDL_SCANCODE_LSHIFT]) {
+                                selectedUnit->queueMoveCommand(app->getMouseX(), app->getMouseY());
+                            } else {
+                                selectedUnit->commandMove(app->getMouseX(), app->getMouseY());
+                            }
+                        }
+                    } else {
+                        PathGrid::GridCoord center = pathGrid->pixelToGrid(app->getMouseX(), app->getMouseY());
+                        int cols = (int)std::ceil(std::sqrt((double)n));
+                        int rows = (int)std::ceil((double)n / cols);
+                        int i = 0;
+                        for (const auto& selectedUnit : selectedUnits) {
+                            int col = i % cols;
+                            int row = i / cols;
+                            int gx = center.x + (col - (cols - 1)) * 3;
+                            int gy = center.y + (row - (rows - 1)) * 3;
+                            auto [px, py] = pathGrid->gridToPixel(gx, gy);
+                            if (state[SDL_SCANCODE_LSHIFT]) {
+                                selectedUnit->queueMoveCommand(px, py);
+                            } else {
+                                selectedUnit->commandMove(px, py);
+                            }
+                            i++;
                         }
                     }
                 }
@@ -347,8 +371,8 @@ void handleRendering() {
         int y = std::min(selector.startY, selector.currY);
         int w = std::abs(selector.startX - selector.currX);
         int h = std::abs(selector.startY - selector.currY);
-        selectionBox->setPosition(x, y);
         selectionBox->setDimensions(w, h);
+        selectionBox->setPosition(x + w / 2, y + h / 2);
         selectionBox->render();
     }
 
@@ -357,6 +381,44 @@ void handleRendering() {
     for (const auto& unit : units) {
         int sortY = unit->getGameEntity().getPositionY();
         renderEntries.push_back({sortY, [unit]() {
+            int ax = unit->getGameEntity().getPositionX();
+            int ay = unit->getGameEntity().getPositionY();
+            int cw = PATH_CELL_WIDTH;
+            int ch = PATH_CELL_HEIGHT;
+            int boxH = ch * 2;
+            float hw = cw / 2.0f;
+            float hh = ch / 2.0f;
+
+            SDL_Renderer* r = app->getRenderer();
+            SDL_Color leftColor  = {255, 120, 180, 200};
+            SDL_Color rightColor = {255, 90, 140, 200};
+            SDL_Color topColor   = {255, 150, 210, 200};
+            int indices[6] = {0, 1, 2, 0, 2, 3};
+
+            SDL_Vertex leftVerts[4] = {
+                { SDL_FPoint{(float)(ax - hw), (float)ay},             leftColor, SDL_FPoint{0,0} },
+                { SDL_FPoint{(float)ax, (float)(ay + hh)},           leftColor, SDL_FPoint{0,0} },
+                { SDL_FPoint{(float)ax, (float)(ay - boxH + hh)},   leftColor, SDL_FPoint{0,0} },
+                { SDL_FPoint{(float)(ax - hw), (float)(ay - boxH)},   leftColor, SDL_FPoint{0,0} }
+            };
+            SDL_RenderGeometry(r, NULL, leftVerts, 4, indices, 6);
+
+            SDL_Vertex rightVerts[4] = {
+                { SDL_FPoint{(float)ax, (float)(ay + hh)},           rightColor, SDL_FPoint{0,0} },
+                { SDL_FPoint{(float)(ax + hw), (float)ay},             rightColor, SDL_FPoint{0,0} },
+                { SDL_FPoint{(float)(ax + hw), (float)(ay - boxH)},   rightColor, SDL_FPoint{0,0} },
+                { SDL_FPoint{(float)ax, (float)(ay - boxH + hh)},   rightColor, SDL_FPoint{0,0} }
+            };
+            SDL_RenderGeometry(r, NULL, rightVerts, 4, indices, 6);
+
+            SDL_Vertex topVerts[4] = {
+                { SDL_FPoint{(float)ax, (float)(ay - boxH - hh)},   topColor, SDL_FPoint{0,0} },
+                { SDL_FPoint{(float)(ax + hw), (float)(ay - boxH)},   topColor, SDL_FPoint{0,0} },
+                { SDL_FPoint{(float)ax, (float)(ay - boxH + hh)},   topColor, SDL_FPoint{0,0} },
+                { SDL_FPoint{(float)(ax - hw), (float)(ay - boxH)},   topColor, SDL_FPoint{0,0} }
+            };
+            SDL_RenderGeometry(r, NULL, topVerts, 4, indices, 6);
+
             AnimatedSprite* animSprite = dynamic_cast<AnimatedSprite*>(&unit->getGameEntity().getSprite());
             if (animSprite) {
                 int row = unit->getDirection() * 44;
@@ -371,7 +433,6 @@ void handleRendering() {
                 const auto& path = pathAction->getPath();
                 int wp = pathAction->getCurrentWaypoint();
                 if (!path.empty()) {
-                    SDL_Renderer* r = app->getRenderer();
                     int startX = unit->getGameEntity().getPositionX();
                     int startY = unit->getGameEntity().getPositionY();
                     for (size_t i = wp; i < path.size(); i++) {
@@ -506,7 +567,7 @@ int main(int argc, char* argv[]){
     productionBar = new LoadingBar(0, 0, 60.0f, 8.0f);
     buttonPanel = new ButtonPanel(app->getRenderer());
 
-    buildings.push_back(Building(app->getRenderer(), 12, 12, 2, 2, 5000.0));
+    buildings.push_back(Building(app->getRenderer(), 12, 12, 2, 2, 2000.0));
     Building& b = buildings.back();
     b.addButtonDef("./assets/img/pioneer.bmp", 64, 64,
         [&b]() {

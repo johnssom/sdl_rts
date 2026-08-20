@@ -56,11 +56,11 @@ class PathAction: public Action {
         int _recalcTimer;
         int _recalcInterval;
 
-        static constexpr double SEPARATION_RADIUS = 50.0;
+        static constexpr double SEPARATION_RADIUS = 25.0;
         static constexpr double SEPARATION_WEIGHT = 2.0;
         static constexpr double WAYPOINT_WEIGHT = 0.6;
         static constexpr double MAX_SPEED = 1.0;
-        static constexpr int WAYPOINT_REACH_DIST = 8;
+        static constexpr int WAYPOINT_REACH_DIST = 15;
 
         void calculateSeparation(UnitEntity& unit, double& outX, double& outY);
     public:

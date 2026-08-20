@@ -52,7 +52,7 @@ bool MoveAction::isGroupAtTarget() const {
     double centroidY = getGroupCentroidY();
     double deltaX = _targetX - centroidX;
     double deltaY = _targetY - centroidY;
-    return std::sqrt(deltaX * deltaX + deltaY * deltaY) < 1.0;
+    return std::sqrt(deltaX * deltaX + deltaY * deltaY) == 0.0;
 }
 
 void MoveAction::calculateSeparation(UnitEntity& unit, double& outX, double& outY) {

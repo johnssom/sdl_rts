@@ -13,6 +13,7 @@ class PathGrid {
         int _height;
         bool* _walkable;
 
+    public:
         struct GridCoord { int x, y; };
 
     public:

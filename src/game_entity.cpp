@@ -52,7 +52,9 @@ void GameEntity::setPosition(int x, int y) {
     }
     for (int i = 0; i < _colliders.size(); i++) {
         if (nullptr != _colliders[i]) {
-            _colliders[i]->setPosition(tlX, tlY);
+            int cw = _colliders[i]->getWidth();
+            int ch = _colliders[i]->getHeight();
+            _colliders[i]->setPosition(x - cw / 2, y - ch / 2);
         }
     }
 }
