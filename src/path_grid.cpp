@@ -6,12 +6,10 @@
 #include <unordered_set>
 #include <functional>
 
-static const int TILE_WIDTH = 60;
-static const int TILE_HEIGHT = 30;
 static const int MAP_RENDER_SIZE = 24;
 static const int SCREEN_WIDTH = 1600;
 static const int SCREEN_HEIGHT = 900;
-static const int MAP_RENDER_OFFSET_X = (SCREEN_WIDTH - (TILE_WIDTH * MAP_RENDER_SIZE)) / 2;
+static const int MAP_RENDER_OFFSET_X = (SCREEN_WIDTH - (PATH_CELL_WIDTH * 2 * MAP_RENDER_SIZE)) / 2;
 static const int MAP_RENDER_OFFSET_Y = 425;
 
 struct PairHash {
@@ -54,17 +52,71 @@ void PathGrid::markTile(int gridX, int gridY) {
 }
 
 void PathGrid::toISO(int x, int y, int* sx, int* sy) {
-    *sx = MAP_RENDER_OFFSET_X + (x * TILE_WIDTH / 2 + y * TILE_WIDTH / 2);
-    *sy = MAP_RENDER_OFFSET_Y + (y * TILE_HEIGHT / 2 - x * TILE_HEIGHT / 2);
+    int tx = x / 2;
+    int ty = y / 2;
+    int subX = x % 2;
+    int subY = y % 2;
+
+    int tw = PATH_CELL_WIDTH * 2;
+    int th = PATH_CELL_HEIGHT * 2;
+
+    int tileSX = MAP_RENDER_OFFSET_X + (tx + ty) * (tw / 2);
+    int tileSY = MAP_RENDER_OFFSET_Y + (ty - tx) * (th / 2);
+
+    *sx = tileSX + (subX + subY) * (tw / 4);
+    *sy = tileSY + (1 + subX - subY) * th / 4;
+}
+
+void PathGrid::tileToISO(int tx, int ty, int* sx, int* sy) {
+    int tw = PATH_CELL_WIDTH * 2;
+    int th = PATH_CELL_HEIGHT * 2;
+    *sx = MAP_RENDER_OFFSET_X + (tx + ty) * (tw / 2);
+    *sy = MAP_RENDER_OFFSET_Y + (ty - tx) * (th / 2);
 }
 
 void PathGrid::fromISO(int px, int py, int* gx, int* gy) {
-    int dx = px - MAP_RENDER_OFFSET_X - TILE_WIDTH / 2;
-    int dy = py - MAP_RENDER_OFFSET_Y - TILE_HEIGHT / 2;
-    double tx = (dx / (double)TILE_WIDTH - dy / (double)TILE_HEIGHT);
-    double ty = (dx / (double)TILE_WIDTH + dy / (double)TILE_HEIGHT);
-    *gx = (int)std::round(tx);
-    *gy = (int)std::round(ty);
+    int dx = px - MAP_RENDER_OFFSET_X;
+    int dy = py - MAP_RENDER_OFFSET_Y;
+    int tw = PATH_CELL_WIDTH * 2;
+    int th = PATH_CELL_HEIGHT * 2;
+
+    double tileTX = dx / (double)tw - dy / (double)th;
+    double tileTY = dx / (double)tw + dy / (double)th;
+
+    int baseTX = (int)std::round(tileTX);
+    int baseTY = (int)std::round(tileTY);
+
+    float minDist = 1e9f;
+    int bestGX = baseTX * 2;
+    int bestGY = baseTY * 2;
+
+    for (int dtx = -1; dtx <= 1; dtx++) {
+        for (int dty = -1; dty <= 1; dty++) {
+            int ttx = baseTX + dtx;
+            int tty = baseTY + dty;
+            for (int sx = 0; sx <= 1; sx++) {
+                for (int sy = 0; sy <= 1; sy++) {
+                    int testGX = ttx * 2 + sx;
+                    int testGY = tty * 2 + sy;
+                    if (testGX < 0 || testGX >= MAP_RENDER_SIZE * 2 || testGY < 0 || testGY >= MAP_RENDER_SIZE * 2) continue;
+
+                    int cx, cy;
+                    toISO(testGX, testGY, &cx, &cy);
+                    float cellCX = cx + PATH_CELL_WIDTH / 2.0f;
+                    float cellCY = cy + PATH_CELL_HEIGHT / 2.0f;
+                    float dist = (px - cellCX) * (px - cellCX) + (py - cellCY) * (py - cellCY);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        bestGX = testGX;
+                        bestGY = testGY;
+                    }
+                }
+            }
+        }
+    }
+
+    *gx = bestGX;
+    *gy = bestGY;
 }
 
 PathGrid::GridCoord PathGrid::pixelToGrid(int px, int py) const {
@@ -78,7 +130,7 @@ PathGrid::GridCoord PathGrid::pixelToGrid(int px, int py) const {
 std::pair<int, int> PathGrid::gridToPixel(int gx, int gy) const {
     int sx, sy;
     toISO(gx, gy, &sx, &sy);
-    return {sx + TILE_WIDTH / 2, sy + TILE_HEIGHT / 2};
+    return {sx + PATH_CELL_WIDTH / 2, sy + PATH_CELL_HEIGHT / 2};
 }
 
 bool PathGrid::isInBounds(int gridX, int gridY) const {

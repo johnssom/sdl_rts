@@ -175,7 +175,7 @@ void MoveAction::calculateObstacleAvoidance(UnitEntity& unit, double& outX, doub
 
     for (const auto& obs : *_obstaclesPtr) {
         int obsSX, obsSY;
-        PathGrid::toISO(obs.x, obs.y, &obsSX, &obsSY);
+        PathGrid::tileToISO(obs.x, obs.y, &obsSX, &obsSY);
         double obsCX = obsSX + 30.0;
         double obsCY = obsSY + 15.0;
 

@@ -1,1 +1,1 @@
-g++ ./src/*.cpp ./lib/glad/src/glad.c -I./include -I./lib/glad/include -o ./bin/main.exe -lmingw32 -lSDL2main -lSDL2 -lSDL2_ttf && ./bin/main.exe
+g++ ./src/*.cpp ./lib/glad/src/glad.c -I./include -I./lib/glad/include -o ./bin/main.exe -lmingw32 -lSDL2main -lSDL2 -lSDL2_ttf

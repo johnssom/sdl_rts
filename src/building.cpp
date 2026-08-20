@@ -40,19 +40,19 @@ void Building::resetProduction() {
 BuildingDiamond Building::getBuildingDiamond() const {
     int tsx, tsy, rsx, rsy, bsx, bsy, lsx, lsy;
 
-    PathGrid::toISO(_tileX + _tileW - 1, _tileY, &tsx, &tsy);
+    PathGrid::tileToISO(_tileX + _tileW - 1, _tileY, &tsx, &tsy);
     float topX = tsx + TILE_WIDTH / 2.0f;
     float topY = tsy;
 
-    PathGrid::toISO(_tileX + _tileW - 1, _tileY + _tileH - 1, &rsx, &rsy);
+    PathGrid::tileToISO(_tileX + _tileW - 1, _tileY + _tileH - 1, &rsx, &rsy);
     float rightX = rsx + TILE_WIDTH;
     float rightY = rsy + TILE_HEIGHT / 2.0f;
 
-    PathGrid::toISO(_tileX, _tileY + _tileH - 1, &bsx, &bsy);
+    PathGrid::tileToISO(_tileX, _tileY + _tileH - 1, &bsx, &bsy);
     float bottomX = bsx + TILE_WIDTH / 2.0f;
     float bottomY = bsy + TILE_HEIGHT;
 
-    PathGrid::toISO(_tileX, _tileY, &lsx, &lsy);
+    PathGrid::tileToISO(_tileX, _tileY, &lsx, &lsy);
     float leftX = lsx;
     float leftY = lsy + TILE_HEIGHT / 2.0f;
 

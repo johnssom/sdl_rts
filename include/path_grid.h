@@ -4,6 +4,9 @@
 #include <vector>
 #include <utility>
 
+#define PATH_CELL_WIDTH  30
+#define PATH_CELL_HEIGHT 15
+
 class PathGrid {
     private:
         int _width;
@@ -27,6 +30,7 @@ class PathGrid {
         std::pair<int, int> gridToPixel(int gx, int gy) const;
 
         static void toISO(int x, int y, int* sx, int* sy);
+        static void tileToISO(int tx, int ty, int* sx, int* sy);
         static void fromISO(int px, int py, int* gx, int* gy);
 
         bool isInBounds(int gridX, int gridY) const;

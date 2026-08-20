@@ -2,8 +2,8 @@
 #define OBSTACLE_H
 
 struct Obstacle {
-    int x, y, w, h;
-    Obstacle(int x, int y, int w, int h) : x(x), y(y), w(w), h(h) {}
+    int x, y;
+    Obstacle(int x, int y) : x(x), y(y) {}
 };
 
 #endif

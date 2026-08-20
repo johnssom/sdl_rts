@@ -90,11 +90,11 @@ ButtonPanel* buttonPanel = nullptr;
 
 void spawnUnitAtTile(int tileX, int tileY) {
     int sx, sy;
-    PathGrid::toISO(tileX, tileY, &sx, &sy);
+    PathGrid::tileToISO(tileX, tileY, &sx, &sy);
     GameEntity* ge = new GameEntity(app->getRenderer());
     ge->setSprite(new AnimatedSprite(app->getRenderer(), "./assets/img/iso_char.bmp"));
     ge->addCollider();
-    ge->setDimensions(40, 50);
+    ge->setDimensions(20, 50);
     ge->setPosition(sx + TILE_WIDTH / 2, sy + TILE_HEIGHT / 2);
     auto unit = std::make_unique<UnitEntity>(ge);
     unit->setUnitsContext(&units);
@@ -180,7 +180,7 @@ void spawnObstacles(SDL_Renderer* renderer, int count) {
     for (int i = 0; i < count; i++) {
         int gx = 5 + std::rand() % 10;
         int gy = 5 + std::rand() % 10;
-        obstacles.push_back(Obstacle(gx, gy, 0, 0));
+        obstacles.push_back(Obstacle(gx, gy));
     }
 }
 
@@ -322,15 +322,17 @@ void handleRendering() {
                 int sx, sy;
                 PathGrid::toISO(gx, gy, &sx, &sy);
 
+                int cw = PATH_CELL_WIDTH;
+                int ch = PATH_CELL_HEIGHT;
                 SDL_Point points[5];
-                points[0] = {sx + TILE_WIDTH / 2, sy};
-                points[1] = {sx + TILE_WIDTH, sy + TILE_HEIGHT / 2};
-                points[2] = {sx + TILE_WIDTH / 2, sy + TILE_HEIGHT};
-                points[3] = {sx, sy + TILE_HEIGHT / 2};
-                points[4] = {sx + TILE_WIDTH / 2, sy};
+                points[0] = {sx + cw / 2, sy};
+                points[1] = {sx + cw, sy + ch / 2};
+                points[2] = {sx + cw / 2, sy + ch};
+                points[3] = {sx, sy + ch / 2};
+                points[4] = {sx + cw / 2, sy};
 
                 if (pathGrid->isWalkable(gx, gy)) {
-                    SDL_SetRenderDrawColor(app->getRenderer(), 40, 40, 40, SDL_ALPHA_OPAQUE);
+                    SDL_SetRenderDrawColor(app->getRenderer(), 40, 40, 255, SDL_ALPHA_OPAQUE);
                     SDL_RenderDrawLines(app->getRenderer(), points, 5);
                 } else {
                     SDL_SetRenderDrawColor(app->getRenderer(), 180, 40, 40, 120);
@@ -385,7 +387,7 @@ void handleRendering() {
 
     for (const auto& obs : obstacles) {
         int sx, sy;
-        PathGrid::toISO(obs.x, obs.y, &sx, &sy);
+        PathGrid::tileToISO(obs.x, obs.y, &sx, &sy);
         int sortY = sy + TILE_HEIGHT / 2;
         renderEntries.push_back({sortY, [obs, sx, sy]() {
             SDL_Color fillColor = {100, 60, 20, SDL_ALPHA_OPAQUE};
@@ -484,9 +486,12 @@ int main(int argc, char* argv[]){
     std::srand(42);
     spawnObstacles(app->getRenderer(), 8);
 
-    pathGrid = new PathGrid(MAP_RENDER_SIZE);
+    pathGrid = new PathGrid(MAP_RENDER_SIZE * 2);
     for (const auto& obs : obstacles) {
-        pathGrid->markTile(obs.x, obs.y);
+        pathGrid->markTile(obs.x * 2, obs.y * 2);
+        pathGrid->markTile(obs.x * 2 + 1, obs.y * 2);
+        pathGrid->markTile(obs.x * 2, obs.y * 2 + 1);
+        pathGrid->markTile(obs.x * 2 + 1, obs.y * 2 + 1);
     }
 
     for (auto& unit : units) {
@@ -513,7 +518,10 @@ int main(int argc, char* argv[]){
     for (const auto& building : buildings) {
         for (int tx = building.getTileX(); tx < building.getTileX() + building.getTileW(); tx++) {
             for (int ty = building.getTileY(); ty < building.getTileY() + building.getTileH(); ty++) {
-                pathGrid->markTile(tx, ty);
+                pathGrid->markTile(tx * 2, ty * 2);
+                pathGrid->markTile(tx * 2 + 1, ty * 2);
+                pathGrid->markTile(tx * 2, ty * 2 + 1);
+                pathGrid->markTile(tx * 2 + 1, ty * 2 + 1);
             }
         }
     }
