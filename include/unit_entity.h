@@ -52,6 +52,7 @@ class UnitEntity {
         void setPathGrid(PathGrid* pathGrid);
         Action* getCurrentAction();
         Direction getDirection() const;
+        void setDirection(Direction direction);
         int getAnimFrame() const;
         bool isMoving() const;
         void incrementAnimFrame();

@@ -127,6 +127,10 @@ Direction UnitEntity::getDirection() const {
     return _direction;
 }
 
+void UnitEntity::setDirection(Direction direction) {
+    _direction = direction;
+}
+
 int UnitEntity::getAnimFrame() const {
     return _animFrame;
 }

@@ -422,6 +422,13 @@ void handleUpdates() {
             float ddy = ey - uy;
             float len = std::sqrt(ddx * ddx + ddy * ddy);
             if (len > 0.01f) {
+                if (!unit->isMoving()) {
+                    if (std::abs(ddx) >= std::abs(ddy)) {
+                        unit->setDirection((ddx > 0) ? DIR_DOWN_RIGHT : DIR_UP_LEFT);
+                    } else {
+                        unit->setDirection((ddy > 0) ? DIR_DOWN_LEFT : DIR_UP_RIGHT);
+                    }
+                }
                 Bullet b;
                 b.x = ux;
                 b.y = uy;
